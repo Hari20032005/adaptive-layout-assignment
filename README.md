@@ -7,7 +7,7 @@ One declarative ad spec + one surface profile → a fully typed resolved layout,
 ```bash
 npm install
 npm run dev      # starts the demo (default http://localhost:5173)
-npm test         # 49 tests: invariants, degradation, validation, renderer
+npm test         # 77 tests: invariants, degradation, validation, renderer
 npm run build    # production build
 ```
 
@@ -66,7 +66,7 @@ Module mapping to the assignment's list: `spec.ts` ↔ `src/engine/spec.ts`, `su
 
 ## Time spent
 
-~2.5 days (see task breakdown in git history).
+(Not yet finalized — measured honestly at submission. Current build took the working equivalents of about 1 working session so far.)
 
 ## AI tools disclosure
 
