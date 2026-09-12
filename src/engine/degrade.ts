@@ -1,5 +1,4 @@
 import { intersectListCheck } from "./geometry";
-import type { Placement } from "./place";
 import type { ElementConstraints } from "./constraints";
 import type { Rect } from "./types";
 

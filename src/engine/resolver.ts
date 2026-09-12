@@ -1,11 +1,10 @@
 import { formBands, selectAxis } from "./band";
 import { applyCompress, compressFactor, layoutBands, type Placement } from "./place";
 import { checkInvariants } from "./degrade";
-import { deriveConstraints, DEFAULT_MIN_FONT_SIZE, type ElementConstraints } from "./constraints";
+import { deriveConstraints, type ElementConstraints } from "./constraints";
 import type {
   AdSpec,
   Diagnostics,
-  ElementStatus,
   ResolvedElement,
   ResolvedLayout,
   SurfaceProfile,
@@ -77,7 +76,7 @@ export function resolveLayout(
     passes: valid,
   };
 
-  const elements = emitElements(placements, dropped, diagnostics, measurer, area);
+  const elements = emitElements(placements, dropped, diagnostics, measurer);
   return { surfaceId: surface.id, elements, diagnostics };
 }
 
@@ -86,7 +85,6 @@ function emitElements(
   dropped: ElementConstraints[],
   diagnostics: Diagnostics,
   measurer: TextMeasurer,
-  area: { width: number; height: number },
 ): ResolvedElement[] {
   const droppedIds = new Set(dropped.map((e) => e.element.id));
   const out: ResolvedElement[] = [];

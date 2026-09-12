@@ -63,7 +63,7 @@ export function applyCompress(bands: Band[], axis: BandAxis, factor: number): vo
   }
 }
 
-export function totalMainDemand(bands: Band[], axis: BandAxis): number {
+export function totalMainDemand(bands: Band[], _axis: BandAxis): number {
   if (bands.length === 0) return 0;
   return bands.reduce((s, band) => s + bandMainLength(band), 0) + GAP * (bands.length - 1);
 }

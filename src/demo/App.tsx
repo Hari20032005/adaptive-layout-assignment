@@ -1,0 +1,125 @@
+import { useState, useEffect, useRef } from "react";
+import { adSpec, surfaceProfiles, type SurfaceKey } from "./sample-ad";
+import { useLiveLayout } from "./AdCanvas";
+import { renderToDom } from "../render/render-dom";
+
+const DISPLAY_SCALE: Record<SurfaceKey, number> = {
+  mobilePortrait: 1,
+  mobileLandscape: 1,
+  broadcastLowerThird: 0.55,
+  retailKiosk: 0.42,
+  kioskCompact: 0.42,
+};
+
+export default function App() {
+  const [surfaceKey, setSurfaceKey] = useState<SurfaceKey>("mobilePortrait");
+  const [heightOverride, setHeightOverride] = useState<number | null>(null);
+  const [debug, setDebug] = useState(true);
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  const { surface, layout } = useLiveLayout(surfaceKey, heightOverride);
+  const scale = DISPLAY_SCALE[surfaceKey];
+
+  useEffect(() => {
+    if (!hostRef.current) return;
+    renderToDom(adSpec, layout, surface, hostRef.current, { debug, displayScale: scale });
+  }, [layout, surface, debug, scale]);
+
+  const degrading = surfaceKey === "kioskCompact" || heightOverride !== null;
+
+  return (
+    <div style={{ fontFamily: "system-ui, sans-serif", padding: 16, maxWidth: 1100, margin: "0 auto" }}>
+      <header style={{ marginBottom: 12 }}>
+        <h1 style={{ fontSize: 20, margin: 0 }}>Adaptive Layout Engine — multi-surface ad demo</h1>
+        <p style={{ color: "#555", margin: "4px 0 0", fontSize: 14 }}>
+          One ad spec + one surface profile → constraint resolution → resolved layout. No per-surface code paths.
+        </p>
+      </header>
+
+      <nav style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        {(Object.keys(surfaceProfiles) as SurfaceKey[]).map((key) => (
+          <button
+            key={key}
+            onClick={() => {
+              setSurfaceKey(key);
+              setHeightOverride(null);
+            }}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: key === surfaceKey ? "2px solid #1971c2" : "1px solid #ccc",
+              background: key === surfaceKey ? "#e7f1ff" : "#fff",
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            {surfaceProfiles[key].label}
+          </button>
+        ))}
+      </nav>
+
+      <main style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <section style={{ flex: "0 0 auto" }}>
+          <div
+            ref={hostRef}
+            style={{
+              width: surface.width * scale,
+              height: surface.height * scale,
+              border: "1px solid #bbb",
+              background: "linear-gradient(160deg,#fdfdfd,#f3f4f6)",
+              position: "relative",
+            }}
+          />
+          <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
+            surface: {surface.width}×{surface.height}px
+            {scale !== 1 && <> · displayed at {(scale * 100).toFixed(0)}%</>}
+          </div>
+        </section>
+
+        <section style={{ flex: "1 1 260px", minWidth: 240 }}>
+          <h2 style={{ fontSize: 14, margin: "0 0 6px" }}>Resolution diagnostics</h2>
+          <ul style={{ fontSize: 13, paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
+            <li>dropped: {layout.diagnostics.dropped.length ? layout.diagnostics.dropped.join(", ") : "none"}</li>
+            <li>scaled: {layout.diagnostics.scaled.length ? layout.diagnostics.scaled.join(", ") : "none"}</li>
+            <li>truncated: {layout.diagnostics.truncated.length ? layout.diagnostics.truncated.join(", ") : "none"}</li>
+            <li>hard constraints: {layout.diagnostics.passes ? "satisfied ✓" : "unresolved ✗"}</li>
+          </ul>
+
+          {degrading && (
+            <div style={{ marginTop: 12 }}>
+              <label style={{ fontSize: 13 }}>
+                Surface height: {surface.height}px
+                <input
+                  type="range"
+                  min={180}
+                  max={1080}
+                  value={heightOverride ?? surfaceProfiles[surfaceKey].height}
+                  onChange={(e) => setHeightOverride(Number(e.target.value))}
+                  style={{ display: "block", width: "100%" }}
+                />
+              </label>
+              <button
+                onClick={() => setHeightOverride(null)}
+                style={{ fontSize: 12, padding: "4px 8px", cursor: "pointer" }}
+              >
+                reset height
+              </button>
+              <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
+                Drag to shrink — branding degrades through scale → truncate → drop, cleanly, never overlapping.
+              </p>
+            </div>
+          )}
+
+          <label style={{ display: "block", marginTop: 12, fontSize: 13 }}>
+            <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} /> show debug markers
+          </label>
+        </section>
+      </main>
+
+      <footer style={{ marginTop: 24, fontSize: 12, color: "#888" }}>
+        Same ad spec resolved live: {layout.elements.filter((e) => e.status !== "dropped").length}/
+        {layout.elements.length} elements placed
+      </footer>
+    </div>
+  );
+}

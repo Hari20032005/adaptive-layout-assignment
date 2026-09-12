@@ -86,11 +86,13 @@ export interface ResolvedLayout {
 }
 
 export class SpecValidationError extends Error {
-  constructor(
-    public readonly field: string,
-    public readonly reason: string,
-  ) {
+  readonly field: string;
+  readonly reason: string;
+
+  constructor(field: string, reason: string) {
     super(`[spec:${field}] ${reason}`);
     this.name = "SpecValidationError";
+    this.field = field;
+    this.reason = reason;
   }
 }
