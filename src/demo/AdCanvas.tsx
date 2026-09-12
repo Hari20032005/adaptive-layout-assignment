@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect } from "react";
 import { resolveLayout } from "../engine/resolver";
 import { renderToDom, type RenderDomOptions } from "../render/render-dom";
-import { canvasMeasurer } from "../engine/measure";
+import { canvasMeasurer } from "../render/text-metrics";
 import { adSpec, surfaceProfiles, type SurfaceKey } from "./sample-ad";
 import type { ResolvedLayout, SurfaceProfile } from "../engine/types";
 
