@@ -86,7 +86,10 @@ export function deriveConstraints(
           element.content.maxLines,
         );
         requiredMin = { width: minFont * 2, height: minFont };
-        preferredSize = { width: m.width + 8, height: m.height };
+        // leave a safety margin: canvas measureText and the browser's final
+        // layout differ slightly (font weight, kerning), so the box must be
+        // a little wider than the raw measurement
+        preferredSize = { width: m.width + 16, height: m.height * 1.08 };
       } else if (element.type === "image") {
         const ratio = element.content.aspectRatio ?? 1;
         const prefH = element.preferredSize?.height ?? Math.min(area.height * 0.5, area.height);

@@ -36,16 +36,35 @@ export const canvasMeasurer: TextMeasurer = {
     const words = text.split(/\s+/);
     const lines: string[] = [];
     let current = "";
+    const push = (s: string) => {
+      if (s) lines.push(s);
+    };
     for (const word of words) {
       const candidate = current ? `${current} ${word}` : word;
-      if (ctx.measureText(candidate).width <= maxWidth || !current) {
+      if (ctx.measureText(candidate).width <= maxWidth) {
         current = candidate;
-      } else {
-        lines.push(current);
-        current = word;
+        continue;
       }
+      push(current);
+      current = "";
+      if (ctx.measureText(word).width <= maxWidth) {
+        current = word;
+        continue;
+      }
+      // a single token wider than the box: the renderer uses word-break, so
+      // hard-break it here to mirror what the browser will actually do
+      let chunk = "";
+      for (const ch of word) {
+        if (chunk && ctx.measureText(chunk + ch).width > maxWidth) {
+          push(chunk);
+          chunk = ch;
+        } else {
+          chunk += ch;
+        }
+      }
+      current = chunk;
     }
-    if (current) lines.push(current);
+    push(current);
 
     const naturalLines = lines.length;
     const overflowed = maxLines !== undefined && naturalLines > maxLines;

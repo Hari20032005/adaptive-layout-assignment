@@ -105,26 +105,29 @@ function emitElements(
       const maxFont = Math.round(Math.max(minFont, p.constraints.preferredFont ?? minFont));
       const capLines = el.content.maxLines;
       const original = el.content.text;
+      const lineFactor = 1.25;
+      // the browser wraps a little wider than canvas measureText (weight,
+      // kerning), so fit against a slightly reduced width
+      const fitWidth = Math.max(1, p.rect.width * 0.9);
 
-      // auto-fit: pick the largest font in [minFont, maxFont] whose wrapped
-      // text fits the resolved box, so text shrinks to fit instead of
-      // truncating the moment the box is one pixel short.
       let fontSize = minFont;
-      let measurement: TextMeasurement = measurer.measure(original, minFont, p.rect.width, capLines);
+      let measurement: TextMeasurement = measurer.measure(original, fontSize, fitWidth, capLines);
       for (let f = maxFont; f >= minFont; f--) {
-        const m = measurer.measure(original, f, p.rect.width, capLines);
+        const m = measurer.measure(original, f, fitWidth, capLines);
         fontSize = f;
         measurement = m;
         if (m.height <= p.rect.height + 0.5 && m.overflowed !== true) break;
       }
 
+      // clamp to what the box can actually show at the chosen font
+      const linesThatRender = Math.max(1, Math.floor(p.rect.height / (fontSize * lineFactor)));
+      const shownLines = Math.max(1, Math.min(measurement.lines, linesThatRender));
       const overflowed =
-        measurement.overflowed === true ||
         measurement.height > p.rect.height + 0.5 ||
-        (capLines !== undefined && measurement.lines > capLines);
-
+        measurement.overflowed === true ||
+        measurement.lines > shownLines;
       resolved.fontSize = fontSize;
-      resolved.lines = measurement.lines;
+      resolved.lines = shownLines;
       resolved.text = original;
       if (overflowed) {
         resolved.status = "truncated";
