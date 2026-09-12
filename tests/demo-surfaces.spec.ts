@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveLayout } from "../src/engine/resolver";
-import { canvasMeasurer } from "../src/render/text-metrics";
+import { canvasMeasurer, resetTextMetricsCache } from "../src/render/text-metrics";
 import { adSpec, surfaceProfiles } from "../src/demo/sample-ad";
 
 /**
@@ -25,7 +25,10 @@ function mockBrowserMetrics(charWidthFactor = 0.6) {
   });
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  resetTextMetricsCache();
+});
 
 describe("demo spec + real browser measurer", () => {
   it("never drops the CTA on any demo surface", () => {
@@ -49,6 +52,7 @@ describe("demo spec + real browser measurer", () => {
   it("stays valid across many measurement biases (0.4x–0.75x char width)", () => {
     for (const factor of [0.4, 0.5, 0.6, 0.75]) {
       vi.restoreAllMocks();
+      resetTextMetricsCache();
       mockBrowserMetrics(factor);
       for (const [key, surface] of Object.entries(surfaceProfiles)) {
         const layout = resolveLayout(adSpec, surface, canvasMeasurer);

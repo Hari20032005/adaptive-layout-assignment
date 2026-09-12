@@ -12,7 +12,6 @@ import type {
 import type { TextMeasurer, TextMeasurement } from "./measure";
 import { estimateMeasurer } from "./measure";
 
-export const LINE_HEIGHT = 1.3;
 
 /**
  * Entry point of the engine.
@@ -103,13 +102,26 @@ function emitElements(
 
     if (el.type === "text") {
       const minFont = p.constraints.effectiveMinTextSize;
-      const fontSize = Math.round(Math.max(minFont, p.constraints.preferredFont ?? minFont));
-      const lineHeight = fontSize * LINE_HEIGHT;
-      const linesThatFit = Math.max(1, Math.floor(p.rect.height / lineHeight));
-      const requested = Math.max(1, Math.min(el.content.maxLines ?? linesThatFit, linesThatFit));
-      const measurement: TextMeasurement = measurer.measure(el.content.text, fontSize, p.rect.width, requested);
+      const maxFont = Math.round(Math.max(minFont, p.constraints.preferredFont ?? minFont));
+      const capLines = el.content.maxLines;
       const original = el.content.text;
-      const overflowed = measurement.overflowed === true || measurement.height > p.rect.height + 0.5;
+
+      // auto-fit: pick the largest font in [minFont, maxFont] whose wrapped
+      // text fits the resolved box, so text shrinks to fit instead of
+      // truncating the moment the box is one pixel short.
+      let fontSize = minFont;
+      let measurement: TextMeasurement = measurer.measure(original, minFont, p.rect.width, capLines);
+      for (let f = maxFont; f >= minFont; f--) {
+        const m = measurer.measure(original, f, p.rect.width, capLines);
+        fontSize = f;
+        measurement = m;
+        if (m.height <= p.rect.height + 0.5 && m.overflowed !== true) break;
+      }
+
+      const overflowed =
+        measurement.overflowed === true ||
+        measurement.height > p.rect.height + 0.5 ||
+        (capLines !== undefined && measurement.lines > capLines);
 
       resolved.fontSize = fontSize;
       resolved.lines = measurement.lines;

@@ -70,6 +70,46 @@ export function formBands(
     currentLen = 0;
   };
 
+  const entryMinMain = (entry: BandEntry): number =>
+    Math.min(
+      axis === "row" ? entry.constraints.requiredMin.height : entry.constraints.requiredMin.width,
+      budget,
+    );
+  const entryPrefMain = (entry: BandEntry): number =>
+    axis === "row" ? entry.constraints.preferredSize.height : entry.constraints.preferredSize.width;
+
+  const recalcUsedTotal = () => {
+    usedTotal = bands.reduce(
+      (s, b) => s + b.entries.reduce((m, e) => Math.max(m, e.mainSize), 0) + GAP,
+      0,
+    );
+    currentLen = current.reduce((m, e) => Math.max(m, e.mainSize), 0);
+  };
+
+  /**
+   * "Scale before drop": reclaim main-axis slack from already-placed elements
+   * (largest slack first, never below their hard minimum) so a higher-priority
+   * element such as the CTA can still be placed.
+   */
+  const reclaimSlack = (deficit: number): number => {
+    let need = deficit;
+    const pool = [...bands.flatMap((b) => b.entries), ...current];
+    pool.sort((a, b) => b.mainSize - entryMinMain(b) - (a.mainSize - entryMinMain(a)));
+    for (const entry of pool) {
+      if (need <= 0.0001) break;
+      const slack = entry.mainSize - entryMinMain(entry);
+      if (slack > 0.0001) {
+        const take = Math.min(slack, need);
+        entry.mainSize -= take;
+        const pref = entryPrefMain(entry);
+        entry.scale = pref > 0 ? entry.mainSize / pref : entry.scale;
+        need -= take;
+      }
+    }
+    if (need < deficit) recalcUsedTotal();
+    return deficit - need;
+  };
+
   for (const constraints of ordered) {
     const preferredMain = axis === "row" ? constraints.preferredSize.height : constraints.preferredSize.width;
     const minMain = Math.min(
@@ -86,7 +126,8 @@ export function formBands(
     let placed = false;
 
     if (current.length === 0) {
-      const room = budget - usedTotal;
+      let room = budget - usedTotal;
+      if (room < minMain) room += reclaimSlack(minMain - room);
       if (room >= minMain) {
         assignFresh(room);
         placed = true;
@@ -94,7 +135,11 @@ export function formBands(
     } else {
       // flushing the current band will consume its length + a gap before the
       // fresh one — account for that when deciding if a fresh band is possible
-      const freshRoom = budget - usedTotal - currentLen - GAP;
+      let freshRoom = budget - usedTotal - currentLen - GAP;
+      if (freshRoom < minMain) {
+        reclaimSlack(minMain - freshRoom);
+        freshRoom = budget - usedTotal - currentLen - GAP;
+      }
       if (freshRoom >= minMain) {
         flush();
         assignFresh(budget - usedTotal);
@@ -113,7 +158,11 @@ export function formBands(
         });
         placed = true;
       } else {
-        const growRoom = budget - usedTotal - currentLen - GAP;
+        let growRoom = budget - usedTotal - currentLen - GAP;
+        if (growRoom < minMain) {
+          reclaimSlack(minMain - growRoom);
+          growRoom = budget - usedTotal - currentLen - GAP;
+        }
         if (growRoom >= minMain) {
           const main = Math.max(minMain, Math.min(preferredMain, currentLen + growRoom));
           current.push({ constraints, mainSize: main, crossSize: 0, scale: preferredMain > 0 ? main / preferredMain : 1 });

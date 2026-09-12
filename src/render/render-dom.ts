@@ -22,22 +22,29 @@ function styleFor(role: string): Partial<CSSStyleDeclaration> {
     display: "flex",
     alignItems: "center",
     boxSizing: "border-box",
-    borderRadius: "8px",
+    borderRadius: "10px",
     overflow: "hidden",
     transition: TRANSITION,
     willChange: "left, top, width, height",
   };
   switch (role) {
     case "hero":
-      return { ...base, background: "linear-gradient(135deg,#ffd8a8,#ff922b)", color: "#1a1a1a" };
+      return { ...base, background: "#f1f3f6", borderRadius: "12px", boxShadow: "0 2px 8px -2px rgba(15,23,42,0.14)" };
     case "primary":
-      return { ...base, color: "#111", fontWeight: "700", lineHeight: "1.25" };
+      return { ...base, color: "#0f172a", fontWeight: "700", lineHeight: "1.2", letterSpacing: "-0.2px" };
     case "action":
-      return { ...base, background: "linear-gradient(180deg,#228be6,#1971c2)", color: "#fff", fontWeight: "600" };
+      return {
+        ...base,
+        background: "linear-gradient(180deg, #3b82f6, #2563eb)",
+        color: "#ffffff",
+        fontWeight: "600",
+        borderRadius: "999px",
+        boxShadow: "0 2px 6px -1px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.25)",
+      };
     case "secondary":
-      return { ...base, color: "#333" };
+      return { ...base, color: "#475569", fontWeight: "500" };
     case "branding":
-      return { ...base, background: "transparent", color: "#495057" };
+      return { ...base, background: "transparent" };
     default:
       return base;
   }
@@ -55,7 +62,7 @@ export function renderToDom(
   host.style.width = `${surface.width * scale}px`;
   host.style.height = `${surface.height * scale}px`;
   host.style.overflow = "hidden";
-  host.style.background = "linear-gradient(160deg,#fdfdfd,#f3f4f6)";
+  host.style.background = "#ffffff";
 
   const existing = new Map<string, HTMLElement>();
   for (const child of Array.from(host.children) as HTMLElement[]) {
@@ -111,7 +118,7 @@ export function renderToDom(
 
     if (specEl.type === "text") {
       box.style.textAlign = "left";
-      box.style.padding = `${4 * scale}px ${6 * scale}px`;
+      box.style.padding = "0";
       box.textContent = resolved.text ?? "";
       // wrap within the resolved box and ellipsize at the resolved line count
       box.style.display = "-webkit-box";
@@ -119,9 +126,13 @@ export function renderToDom(
       box.style.webkitLineClamp = String(resolved.lines ?? 1);
       box.style.whiteSpace = "normal";
       box.style.wordBreak = "break-word";
+      box.style.lineHeight = "1.25";
       box.style.overflow = "hidden";
     } else if (specEl.type === "button") {
       box.style.justifyContent = "center";
+      box.style.whiteSpace = "nowrap";
+      box.style.textAlign = "center";
+      box.style.fontSize = `${16 * scale}px`;
       box.textContent = specEl.content.label;
     } else {
       const img = document.createElement("img");

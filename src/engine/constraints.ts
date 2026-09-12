@@ -11,8 +11,17 @@ const ROLE_WEIGHTS: Record<string, number> = {
   branding: 1,
 };
 
-export const DEFAULT_MIN_FONT_SIZE = 12;
+const DEFAULT_MIN_FONT_SIZE = 12;
 const DEFAULT_FONT_SIZE = 16;
+
+/** role-aware preferred font sizes give real typographic hierarchy */
+const ROLE_FONT_SIZE: Record<string, number> = {
+  primary: 28,
+  secondary: 16,
+  action: 16,
+  hero: 16,
+  branding: 40,
+};
 
 export interface ElementConstraints {
   element: AdElementSpec;
@@ -42,11 +51,8 @@ function elementMinFontSize(surface: SurfaceProfile, element: AdElementSpec): nu
 }
 
 function preferredFontSize(element: AdElementSpec, minFont: number): number {
-  if (element.type === "text") {
-    return Math.max(minFont, DEFAULT_FONT_SIZE * 2);
-  }
-  if (element.type === "logo") return 48;
-  return DEFAULT_FONT_SIZE;
+  const base = ROLE_FONT_SIZE[element.role] ?? DEFAULT_FONT_SIZE;
+  return Math.max(minFont, base);
 }
 
 export function deriveConstraints(
@@ -80,7 +86,7 @@ export function deriveConstraints(
           element.content.maxLines,
         );
         requiredMin = { width: minFont * 2, height: minFont };
-        preferredSize = { width: m.width, height: m.height };
+        preferredSize = { width: m.width + 8, height: m.height };
       } else if (element.type === "image") {
         const ratio = element.content.aspectRatio ?? 1;
         const prefH = element.preferredSize?.height ?? Math.min(area.height * 0.5, area.height);

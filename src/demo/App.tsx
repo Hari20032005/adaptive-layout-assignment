@@ -3,6 +3,9 @@ import { adSpec, surfaceProfiles, type SurfaceKey } from "./sample-ad";
 import { useLiveLayout } from "./AdCanvas";
 import { renderToDom } from "../render/render-dom";
 import { renderToCanvas } from "../render/render-canvas";
+import { selectAxis } from "../engine/band";
+import { workingArea } from "../engine/geometry";
+import "./demo.css";
 
 const DISPLAY_SCALE: Record<SurfaceKey, number> = {
   mobilePortrait: 1,
@@ -12,17 +15,35 @@ const DISPLAY_SCALE: Record<SurfaceKey, number> = {
   kioskCompact: 0.45,
 };
 
+const REPO_URL = "https://github.com/Hari20032005/adaptive-layout-assignment";
+
+function deviceClass(surfaceKey: SurfaceKey): string {
+  if (surfaceKey.startsWith("mobile")) return "device device--phone";
+  if (surfaceKey.startsWith("kiosk")) return "device device--kiosk";
+  return "device device--bar";
+}
+
+function Chip({ tone, children }: { tone: "ok" | "warn" | "danger" | "neutral"; children: React.ReactNode }) {
+  return <span className={`chip chip--${tone}`}>{children}</span>;
+}
+
 export default function App() {
   const [surfaceKey, setSurfaceKey] = useState<SurfaceKey>("mobilePortrait");
   const [heightOverride, setHeightOverride] = useState<number | null>(null);
   const [backend, setBackend] = useState<"dom" | "canvas">("dom");
-  const [debug, setDebug] = useState(true);
+  const [debug, setDebug] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const { surface, layout } = useLiveLayout(surfaceKey, heightOverride);
   const scale = DISPLAY_SCALE[surfaceKey];
   const baseHeight = surfaceProfiles[surfaceKey].height;
+  const minHeight = Math.min(240, baseHeight);
+  const height = heightOverride ?? baseHeight;
+  const sliderFill = `${((height - minHeight) / Math.max(1, baseHeight - minHeight)) * 100}%`;
+
+  const area = workingArea(surface, surface.safeArea);
+  const axis = selectAxis(area);
 
   useEffect(() => {
     if (backend === "canvas") {
@@ -36,115 +57,182 @@ export default function App() {
   }, [layout, surface, debug, scale, backend]);
 
   const cta = layout.elements.find((e) => e.id === "cta");
+  const placedCount = layout.elements.filter((e) => e.status !== "dropped").length;
+  const sortedSurfaces = Object.keys(surfaceProfiles) as SurfaceKey[];
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", padding: 16, maxWidth: 1100, margin: "0 auto" }}>
-      <header style={{ marginBottom: 12 }}>
-        <h1 style={{ fontSize: 20, margin: 0 }}>Adaptive Layout Engine — multi-surface ad demo</h1>
-        <p style={{ color: "#555", margin: "4px 0 0", fontSize: 14 }}>
-          One ad spec + one surface profile → constraint resolver → resolved layout. No per-surface code paths.
-        </p>
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <div className="brand__mark" aria-hidden="true">FL</div>
+          <div>
+            <h1 className="brand__title">Adaptive Layout Engine</h1>
+            <p className="brand__sub">
+              One ad spec, resolved across every surface by a priority-ordered constraint algorithm.
+            </p>
+          </div>
+        </div>
+        <div className="topbar__links">
+          <a className="link-pill" href={REPO_URL} target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+          <span className="link-pill" aria-hidden="true">
+            {adSpec.elements.length} elements · {sortedSurfaces.length} surfaces
+          </span>
+        </div>
       </header>
 
-      <nav style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
-        {(Object.keys(surfaceProfiles) as SurfaceKey[]).map((key) => (
-          <button
-            key={key}
-            onClick={() => {
-              setSurfaceKey(key);
-              setHeightOverride(null);
-            }}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: key === surfaceKey ? "2px solid #1971c2" : "1px solid #ccc",
-              background: key === surfaceKey ? "#e7f1ff" : "#fff",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
-          >
-            {surfaceProfiles[key].label}
-          </button>
-        ))}
-        <span style={{ marginLeft: 8, fontSize: 12, color: "#555" }}>backend:</span>
-        {(["dom", "canvas"] as const).map((b) => (
-          <button
-            key={b}
-            onClick={() => setBackend(b)}
-            style={{
-              fontSize: 12,
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: "1px solid #999",
-              background: backend === b ? "#12b886" : "#f1f3f5",
-              color: backend === b ? "#fff" : "#333",
-              cursor: "pointer",
-            }}
-          >
-            {b.toUpperCase()}
-          </button>
-        ))}
-      </nav>
-
-      <main style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <section style={{ flex: "0 0 auto" }}>
-          {backend === "canvas" ? (
-            <canvas
-              ref={canvasRef}
-              style={{ width: surface.width * scale, height: surface.height * scale, border: "1px solid #bbb" }}
-            />
-          ) : (
-            <div ref={hostRef} style={{ border: "1px solid #bbb", position: "relative" }} />
-          )}
-          <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
-            surface: {surface.width}×{surface.height}px
-            {scale !== 1 && <> · displayed at {(scale * 100).toFixed(0)}%</>}
+      <div className="workspace">
+        <section className="stage-card" aria-label="Resolved ad preview">
+          <div className="stage-card__head">
+            <span className="stage-card__title">{surface.label}</span>
+            <span className="stage-card__meta">
+              {surface.width} × {surface.height} · {axis === "row" ? "stacked" : "side-by-side"}
+            </span>
+          </div>
+          <div className="stage">
+            <div>
+              <div className={deviceClass(surfaceKey)}>
+                <div
+                  className="device__screen"
+                  style={{ width: surface.width * scale, height: surface.height * scale }}
+                >
+                  {backend === "canvas" ? (
+                    <canvas
+                      ref={canvasRef}
+                      style={{ display: "block", width: surface.width * scale, height: surface.height * scale }}
+                    />
+                  ) : (
+                    <div ref={hostRef} style={{ position: "relative", width: "100%", height: "100%" }} />
+                  )}
+                </div>
+              </div>
+              <div className="device__caption">
+                working area <code>{Math.round(area.width)}×{Math.round(area.height)}</code>
+                {scale !== 1 && <> · shown at {(scale * 100).toFixed(0)}%</>}
+              </div>
+            </div>
           </div>
         </section>
 
-        <section style={{ flex: "1 1 280px", minWidth: 260 }}>
-          <h2 style={{ fontSize: 14, margin: "0 0 6px" }}>Resolution diagnostics</h2>
-          <ul style={{ fontSize: 13, paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
-            <li>
-              CTA (priority 2):{" "}
-              <strong style={{ color: cta?.status === "dropped" ? "#e03131" : "#2f9e44" }}>{cta?.status ?? "missing"}</strong>
-            </li>
-            <li>dropped: {layout.diagnostics.dropped.length ? layout.diagnostics.dropped.join(", ") : "none"}</li>
-            <li>scaled: {layout.diagnostics.scaled.length ? layout.diagnostics.scaled.join(", ") : "none"}</li>
-            <li>truncated: {layout.diagnostics.truncated.length ? layout.diagnostics.truncated.join(", ") : "none"}</li>
-            <li>hard constraints: {layout.diagnostics.passes ? "satisfied ✓" : "unresolved ✗"}</li>
-          </ul>
+        <aside className="rail">
+          <div className="rail-card">
+            <h2 className="rail-card__title">Surface profile</h2>
+            <div className="surface-list" role="group" aria-label="Surface profile">
+              {sortedSurfaces.map((key) => {
+                const profile = surfaceProfiles[key];
+                return (
+                  <button
+                    key={key}
+                    className="surface-option"
+                    aria-pressed={key === surfaceKey}
+                    onClick={() => {
+                      setSurfaceKey(key);
+                      setHeightOverride(null);
+                    }}
+                  >
+                    <span className="surface-option__label">{profile.label}</span>
+                    <span className="surface-option__dims">
+                      {profile.width}×{profile.height}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-          <div style={{ marginTop: 12 }}>
-            <label style={{ fontSize: 13 }}>
-              Surface height: {surface.height}px
-              <input
-                type="range"
-                min={Math.min(240, baseHeight)}
-                max={baseHeight}
-                value={heightOverride ?? baseHeight}
-                onChange={(e) => setHeightOverride(Number(e.target.value))}
-                style={{ display: "block", width: "100%" }}
-              />
-            </label>
-            <button onClick={() => setHeightOverride(null)} style={{ fontSize: 12, padding: "4px 8px", cursor: "pointer" }}>
-              reset height
-            </button>
-            <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
-              Drag to shrink — the lowest-priority element (branding, then promo) degrades through scale → truncate → drop,
-              while the CTA stays intact. Never overlaps.
+          <div className="rail-card">
+            <h2 className="rail-card__title">Renderer</h2>
+            <div className="segmented" role="group" aria-label="Renderer backend">
+              {(["dom", "canvas"] as const).map((b) => (
+                <button key={b} aria-pressed={backend === b} onClick={() => setBackend(b)}>
+                  {b.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <p className="hint">Both backends consume the exact same resolved layout.</p>
+          </div>
+
+          <div className="rail-card">
+            <h2 className="rail-card__title">Resolution diagnostics</h2>
+            <div className="diag">
+              <div className="diag__row">
+                <span className="diag__key">CTA (priority 2)</span>
+                <Chip tone={cta?.status === "dropped" ? "danger" : "ok"}>{cta?.status ?? "missing"}</Chip>
+              </div>
+              <div className="diag__row">
+                <span className="diag__key">Hard constraints</span>
+                <Chip tone={layout.diagnostics.passes ? "ok" : "danger"}>
+                  {layout.diagnostics.passes ? "satisfied" : "unresolved"}
+                </Chip>
+              </div>
+              <div className="diag__row">
+                <span className="diag__key">Placed</span>
+                <Chip tone="neutral">
+                  <code>
+                    {placedCount}/{layout.elements.length}
+                  </code>
+                </Chip>
+              </div>
+              <div className="diag__row">
+                <span className="diag__key">Dropped</span>
+                <Chip tone={layout.diagnostics.dropped.length ? "warn" : "neutral"}>
+                  {layout.diagnostics.dropped.length ? layout.diagnostics.dropped.join(", ") : "none"}
+                </Chip>
+              </div>
+              <div className="diag__row">
+                <span className="diag__key">Scaled · truncated</span>
+                <Chip tone="neutral">
+                  <code>
+                    {layout.diagnostics.scaled.length} · {layout.diagnostics.truncated.length}
+                  </code>
+                </Chip>
+              </div>
+            </div>
+          </div>
+
+          <div className="rail-card">
+            <h2 className="rail-card__title">Priority degradation</h2>
+            <div className="slider-head">
+              <label className="slider-label" htmlFor="height">
+                Surface height
+              </label>
+              <span className="slider-value">{height}px</span>
+            </div>
+            <input
+              id="height"
+              type="range"
+              min={minHeight}
+              max={baseHeight}
+              value={height}
+              style={{ ["--fill" as string]: sliderFill }}
+              onChange={(e) => setHeightOverride(Number(e.target.value))}
+            />
+            <div className="btn-row">
+              <button className="btn" onClick={() => setHeightOverride(null)}>
+                Reset height
+              </button>
+            </div>
+            <p className="hint">
+              Shrink the surface: the lowest-priority element degrades first — scale, then truncate, then drop —
+              while the CTA stays intact and nothing ever overlaps.
             </p>
           </div>
 
-          <label style={{ display: "block", marginTop: 12, fontSize: 13 }}>
-            <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} /> show debug markers
-          </label>
-        </section>
-      </main>
+          <div className="rail-card">
+            <label className="switch">
+              <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
+              Show debug markers
+            </label>
+          </div>
+        </aside>
+      </div>
 
-      <footer style={{ marginTop: 24, fontSize: 12, color: "#888" }}>
-        Same ad spec resolved live: {layout.elements.filter((e) => e.status !== "dropped").length}/{layout.elements.length} elements
-        placed · real canvas text metrics
+      <footer className="footer">
+        <span>
+          Same spec resolved live: <code>{placedCount}/{layout.elements.length}</code> elements placed
+        </span>
+        <span>Real canvas text metrics · DOM &amp; Canvas renderers share one resolver</span>
       </footer>
     </div>
   );

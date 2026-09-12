@@ -8,10 +8,10 @@ export const adSpec = defineAd({
     { id: "hero", type: "image", role: "hero", priority: 1, preferredSize: { width: 360, height: 300 }, content: { src: PRODUCT_IMAGE, alt: "Product photo", aspectRatio: 1.5 } },
     { id: "price", type: "text", role: "secondary", priority: 2, content: { text: "$29.99", maxLines: 1 } },
     { id: "cta", type: "button", role: "action", priority: 2, interactive: true, content: { label: "Shop Now" } },
-    { id: "promo", type: "text", role: "secondary", priority: 3, content: { text: "Free shipping on orders over $50. Limited time offer while supplies last.", maxLines: 3 } },
+    { id: "promo", type: "text", role: "secondary", priority: 3, content: { text: "Free shipping over $50. Limited time offer.", maxLines: 2 } },
     { id: "logo", type: "logo", role: "branding", priority: 3, content: { src: BRAND_LOGO, alt: "Brand logo" } },
-    { id: "rating", type: "text", role: "secondary", priority: 4, content: { text: "★★★★★ 2,340 verified reviews", maxLines: 1 } },
-    { id: "terms", type: "text", role: "secondary", priority: 5, content: { text: "Terms apply. Offer ends Sunday.", maxLines: 1 } },
+    { id: "rating", type: "text", role: "secondary", priority: 4, content: { text: "★★★★★ 2,340 reviews", maxLines: 1 } },
+    { id: "terms", type: "text", role: "secondary", priority: 5, content: { text: "Terms apply.", maxLines: 1 } },
   ],
 });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canvasMeasurer } from "../src/render/text-metrics";
+import { canvasMeasurer, resetTextMetricsCache } from "../src/render/text-metrics";
 
 /**
  * Regression tests for the browser text measurer. The original bug: it

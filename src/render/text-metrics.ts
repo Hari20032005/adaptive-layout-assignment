@@ -11,13 +11,25 @@ interface MockableContext {
   measureText(text: string): { width: number };
 }
 
+let cachedCanvas: HTMLCanvasElement | null = null;
+
+function getContext(): MockableContext | null {
+  if (typeof document === "undefined") return null;
+  if (!cachedCanvas) cachedCanvas = document.createElement("canvas");
+  return (cachedCanvas.getContext("2d") as unknown as MockableContext | null) ?? null;
+}
+
+/** Test hook: drop the cached canvas so a fresh mock can take effect. */
+export function resetTextMetricsCache(): void {
+  cachedCanvas = null;
+}
+
 export const canvasMeasurer: TextMeasurer = {
   measure(text: string, fontSize: number, maxWidth: number, maxLines?: number): TextMeasurement {
     if (typeof document === "undefined" || maxWidth <= 0) {
       return estimateMeasurer.measure(text, fontSize, maxWidth, maxLines);
     }
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d") as unknown as MockableContext | null;
+    const ctx = getContext();
     if (!ctx) return estimateMeasurer.measure(text, fontSize, maxWidth, maxLines);
 
     ctx.font = `${fontSize}px system-ui, sans-serif`;

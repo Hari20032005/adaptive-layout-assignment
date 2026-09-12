@@ -36,13 +36,17 @@ describe("resolveLayout — structural adaptation", () => {
     expect(hero.x + hero.width).toBeLessThanOrEqual(headline.x + 1);
   });
 
-  it("arranges the same band differently by aspect ratio (not uniform scaling)", () => {
+  it("arranges the same elements differently by aspect ratio (not uniform scaling)", () => {
     const tall = resolveLayout(demoAd, mobilePortrait, estimateMeasurer);
     const wide = resolveLayout(demoAd, broadcast, estimateMeasurer);
+    const tallHero = tall.elements.find((e) => e.id === "hero")!;
     const tallH = tall.elements.find((e) => e.id === "headline")!;
+    const wideHero = wide.elements.find((e) => e.id === "hero")!;
     const wideH = wide.elements.find((e) => e.id === "headline")!;
-    expect(tallH.y).toBeGreaterThan(tall.elements.find((e) => e.id === "hero")!.y);
-    expect(wideH.y).toBe(wide.elements.find((e) => e.id === "hero")!.y);
+    // tall surface: headline is stacked below the hero
+    expect(tallH.y).toBeGreaterThan(tallHero.y);
+    // wide surface: hero and headline are side-by-side (hero strip left of headline)
+    expect(wideHero.x + wideHero.width).toBeLessThanOrEqual(wideH.x + 1);
   });
 });
 

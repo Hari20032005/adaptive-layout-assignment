@@ -121,7 +121,11 @@ function minMainOf(el: ElementConstraints, axis: BandAxis): number {
   return axis === "row" ? el.requiredMin.height : el.requiredMin.width;
 }
 
-/** min-aware proportional cross-axis distribution; null when mins alone can't fit */
+/** min-aware cross-axis distribution.
+ * Elements keep their preferred cross size and are only shrunk (waterfilled)
+ * when the band cannot fit them all — never inflated to fill the axis, so a
+ * lone element in a band does not stretch edge-to-edge.
+ * Returns null when even the hard minimums cannot fit. */
 export function distributeCross(
   entries: BandEntry[],
   axis: BandAxis,
@@ -131,46 +135,28 @@ export function distributeCross(
   const minsTotal = mins.reduce((a, b) => a + b, 0);
   if (minsTotal > usable) return null;
 
-  const result = new Map<BandEntry, number>();
-  const totalPreferredCross = entries.reduce((s, e) => s + preferredCross(e, axis), 0);
-  // distribute within the room left after inter-entry gaps
-  const effectiveUsable = usable - GAP * Math.max(0, entries.length - 1);
-
-  const flexible: { entry: BandEntry; want: number; base: number }[] = [];
-  entries.forEach((e, i) => {
+  const desired = entries.map((e, i) => {
     const min = mins[i]!;
-    const prefer = preferredCross(e, axis);
     if (e.constraints.element.type === "image") {
-      const derived = Math.max(min, Math.min(imageDerivedCross(e, axis), prefer));
-      if (derived > min) {
-        flexible.push({ entry: e, want: derived, base: min });
-        result.set(e, min);
-      } else {
-        result.set(e, min);
-      }
-      return;
+      const derived = imageDerivedCross(e, axis);
+      return Math.max(min, Math.min(derived, preferredCross(e, axis)));
     }
-    const share = totalPreferredCross > 0 ? (prefer / totalPreferredCross) * effectiveUsable : min;
-    if (share > min) {
-      flexible.push({ entry: e, want: share, base: min });
-      result.set(e, min);
-    } else {
-      result.set(e, min);
-    }
+    return Math.max(min, preferredCross(e, axis));
   });
 
-  const flexPool = Math.max(
-    0,
-    effectiveUsable - mins.reduce((a, b) => a + b, 0) + flexible.reduce((s, f) => s + f.base, 0),
-  );
-  const wantTotal = flexible.reduce((s, f) => s + f.want, 0);
-  if (flexible.length > 0 && wantTotal > 0) {
-    const scale = Math.min(1, flexPool / wantTotal);
-    for (const f of flexible) {
-      result.set(f.entry, Math.min(f.base + (f.want - f.base) * scale, f.base + (f.want - f.base)));
-    }
+  const total = desired.reduce((a, b) => a + b, 0);
+  const result = new Map<BandEntry, number>();
+
+  if (total <= usable) {
+    entries.forEach((e, i) => result.set(e, desired[i]!));
+    return result;
   }
 
+  // waterfill: keep minimums, shrink the flexible portion proportionally
+  const flexibleTotal = desired.reduce((s, d, i) => s + (d - mins[i]!), 0);
+  const excess = total - usable;
+  const scale = flexibleTotal > 0 ? Math.max(0, (flexibleTotal - excess) / flexibleTotal) : 0;
+  entries.forEach((e, i) => result.set(e, mins[i]! + (desired[i]! - mins[i]!) * scale));
   return result;
 }
 
@@ -178,7 +164,10 @@ export function layoutBands(bands: Band[], axis: BandAxis, area: Rect): BandLayo
   const placements: Placement[] = [];
   const blame: ElementConstraints[] = [];
   const budget = axis === "row" ? area.height : area.width;
-  let offset = 0;
+  // center the band group along the main axis so leftover space is balanced
+  // rather than dumped at one edge
+  const demand = totalMainDemand(bands, axis);
+  let offset = Math.max(0, (budget - demand) / 2);
 
   for (const band of bands) {
     const bandLen = bandMainLength(band);
@@ -214,7 +203,11 @@ function placeEntries(
     return { list, blame };
   }
 
-  let cursor = 0;
+  // center the group along the cross axis rather than packing it to one edge
+  const crossExtent = entries.reduce((s, e, i) => s + (cross.get(e) ?? 0) + (i > 0 ? GAP : 0), 0);
+  const crossBudget = axis === "row" ? area.width : area.height;
+  let cursor = Math.max(0, (crossBudget - crossExtent) / 2);
+
   for (const entry of entries) {
     const el = entry.constraints;
     const crossSize = cross.get(entry) ?? 0;
