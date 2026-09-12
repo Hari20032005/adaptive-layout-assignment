@@ -25,6 +25,7 @@ function mockCanvasWithMetrics(charWidthFactor = 0.6) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  resetTextMetricsCache();
 });
 
 describe("canvasMeasurer", () => {
