@@ -1,5 +1,7 @@
 # Adaptive Layout Engine for Multi-Surface Ads
 
+**Live demo:** https://adaptive-layout-assignment-orcin.vercel.app/ · **Repo:** https://github.com/Hari20032005/adaptive-layout-assignment
+
 One declarative ad spec + one surface profile → a fully typed resolved layout, resolved by a priority-ordered constraint algorithm that re-composes the arrangement per surface — never `if (surface === "mobile")`, never CSS breakpoints making layout decisions.
 
 ## Setup
