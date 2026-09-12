@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { adSpec, surfaceProfiles, type SurfaceKey } from "./sample-ad";
 import { useLiveLayout } from "./AdCanvas";
 import { renderToDom } from "../render/render-dom";
+import { renderToCanvas } from "../render/render-canvas";
 
 const DISPLAY_SCALE: Record<SurfaceKey, number> = {
   mobilePortrait: 1,
@@ -14,16 +15,29 @@ const DISPLAY_SCALE: Record<SurfaceKey, number> = {
 export default function App() {
   const [surfaceKey, setSurfaceKey] = useState<SurfaceKey>("mobilePortrait");
   const [heightOverride, setHeightOverride] = useState<number | null>(null);
+  const [backend, setBackend] = useState<"dom" | "canvas">("dom");
   const [debug, setDebug] = useState(true);
   const hostRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const { surface, layout } = useLiveLayout(surfaceKey, heightOverride);
   const scale = DISPLAY_SCALE[surfaceKey];
 
   useEffect(() => {
-    if (!hostRef.current) return;
-    renderToDom(adSpec, layout, surface, hostRef.current, { debug, displayScale: scale });
-  }, [layout, surface, debug, scale]);
+    if (backend === "canvas") {
+      if (canvasRef.current) {
+        renderToCanvas(adSpec, layout, surface, canvasRef.current, { debug });
+      }
+      if (hostRef.current) hostRef.current.innerHTML = "";
+      return;
+    }
+    if (hostRef.current) {
+      const measuredSurface = { ...surface, width: surface.width * scale, height: surface.height * scale };
+      hostRef.current.style.width = `${measuredSurface.width}px`;
+      hostRef.current.style.height = `${measuredSurface.height}px`;
+      renderToDom(adSpec, layout, { ...surface, width: surface.width, height: surface.height }, hostRef.current, { debug, displayScale: scale });
+    }
+  }, [layout, surface, debug, scale, backend]);
 
   const degrading = surfaceKey === "kioskCompact" || heightOverride !== null;
 
@@ -32,11 +46,11 @@ export default function App() {
       <header style={{ marginBottom: 12 }}>
         <h1 style={{ fontSize: 20, margin: 0 }}>Adaptive Layout Engine — multi-surface ad demo</h1>
         <p style={{ color: "#555", margin: "4px 0 0", fontSize: 14 }}>
-          One ad spec + one surface profile → constraint resolution → resolved layout. No per-surface code paths.
+          One ad spec + one surface profile → constraint resolver → resolved layout. No per-surface code paths.
         </p>
       </header>
 
-      <nav style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+      <nav style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         {(Object.keys(surfaceProfiles) as SurfaceKey[]).map((key) => (
           <button
             key={key}
@@ -56,20 +70,43 @@ export default function App() {
             {surfaceProfiles[key].label}
           </button>
         ))}
+        <span style={{ marginLeft: 8, fontSize: 12, color: "#555" }}>backend:</span>
+        {(["dom", "canvas"] as const).map((b) => (
+          <button
+            key={b}
+            onClick={() => setBackend(b)}
+            style={{
+              fontSize: 12,
+              padding: "4px 10px",
+              borderRadius: 6,
+              border: "1px solid #999",
+              background: backend === b ? "#12b886" : "#f1f3f5",
+              color: backend === b ? "#fff" : "#333",
+              cursor: "pointer",
+            }}
+          >
+            {b.toUpperCase()}
+          </button>
+        ))}
       </nav>
 
       <main style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
         <section style={{ flex: "0 0 auto" }}>
-          <div
-            ref={hostRef}
-            style={{
-              width: surface.width * scale,
-              height: surface.height * scale,
-              border: "1px solid #bbb",
-              background: "linear-gradient(160deg,#fdfdfd,#f3f4f6)",
-              position: "relative",
-            }}
-          />
+          {backend === "canvas" ? (
+            <canvas
+              ref={canvasRef}
+              style={{ width: surface.width * scale, height: surface.height * scale, border: "1px solid #bbb" }}
+            />
+          ) : (
+            <div
+              ref={hostRef}
+              style={{
+                border: "1px solid #bbb",
+                background: "linear-gradient(160deg,#fdfdfd,#f3f4f6)",
+                position: "relative",
+              }}
+            />
+          )}
           <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
             surface: {surface.width}×{surface.height}px
             {scale !== 1 && <> · displayed at {(scale * 100).toFixed(0)}%</>}
@@ -98,10 +135,7 @@ export default function App() {
                   style={{ display: "block", width: "100%" }}
                 />
               </label>
-              <button
-                onClick={() => setHeightOverride(null)}
-                style={{ fontSize: 12, padding: "4px 8px", cursor: "pointer" }}
-              >
+              <button onClick={() => setHeightOverride(null)} style={{ fontSize: 12, padding: "4px 8px", cursor: "pointer" }}>
                 reset height
               </button>
               <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
@@ -117,8 +151,7 @@ export default function App() {
       </main>
 
       <footer style={{ marginTop: 24, fontSize: 12, color: "#888" }}>
-        Same ad spec resolved live: {layout.elements.filter((e) => e.status !== "dropped").length}/
-        {layout.elements.length} elements placed
+        Same ad spec resolved live: {layout.elements.filter((e) => e.status !== "dropped").length}/{layout.elements.length} elements placed · measured with real canvas text metrics
       </footer>
     </div>
   );

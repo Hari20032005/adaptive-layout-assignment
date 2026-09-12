@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect } from "react";
 import { resolveLayout } from "../engine/resolver";
 import { renderToDom, type RenderDomOptions } from "../render/render-dom";
-import { estimateMeasurer } from "../engine/measure";
+import { canvasMeasurer } from "../engine/measure";
 import { adSpec, surfaceProfiles, type SurfaceKey } from "./sample-ad";
 import type { ResolvedLayout, SurfaceProfile } from "../engine/types";
 
@@ -14,7 +14,7 @@ export function AdCanvas({ surface, debug }: AdCanvasProps) {
 
   useEffect(() => {
     if (!hostRef.current) return;
-    const layout = resolveLayout(adSpec, surface, estimateMeasurer);
+    const layout = resolveLayout(adSpec, surface, canvasMeasurer);
     renderToDom(adSpec, layout, surface, hostRef.current, { debug });
   }, [surface, debug]);
 
@@ -35,7 +35,7 @@ export function useLiveLayout(surfaceKey: SurfaceKey, heightOverride: number | n
         : base;
     return {
       surface,
-      layout: resolveLayout(adSpec, surface, estimateMeasurer) as ResolvedLayout,
+      layout: resolveLayout(adSpec, surface, canvasMeasurer) as ResolvedLayout,
     };
   }, [surfaceKey, heightOverride]);
 }
