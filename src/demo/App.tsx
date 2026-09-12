@@ -120,7 +120,7 @@ export default function App() {
               Surface height: {surface.height}px
               <input
                 type="range"
-                min={Math.min(240, baseHeight)}
+                min={Math.min(200, baseHeight)}
                 max={baseHeight}
                 value={heightOverride ?? baseHeight}
                 onChange={(e) => setHeightOverride(Number(e.target.value))}
