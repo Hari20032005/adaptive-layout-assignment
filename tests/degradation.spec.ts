@@ -1,51 +1,55 @@
 import { describe, expect, it } from "vitest";
-import { demoAd, kiosk } from "./resolver.spec";
+import { defineSurface } from "../src/engine/surfaces";
 import { resolveLayout } from "../src/engine/resolver";
 import { estimateMeasurer } from "../src/engine/measure";
-import type { SurfaceProfile } from "../src/engine/types";
-import { defineSurface } from "../src/engine/surfaces";
+import { demoAd } from "./fixtures";
+
+/** Portrait kiosk: shrinking its height shrinks the main-axis budget, so
+ * degradation is actually driven by the height slider (as in the demo). */
+function kioskPortrait(height: number) {
+  return defineSurface({ id: `kp${height}`, label: `KP${height}`, width: 480, height, minTapTarget: 60, touchOnly: true });
+}
+
+function placedIds(height: number) {
+  return resolveLayout(demoAd, kioskPortrait(height), estimateMeasurer)
+    .elements.filter((e) => e.status !== "dropped")
+    .map((e) => e.id);
+}
 
 describe("degradation — deterministic priority order", () => {
-  it("drops branding before promo before price as kiosk height shrinks", () => {
-    const at500 = resolveLayout(
-      demoAd,
-      defineSurface({ id: "k500", label: "K500", width: 1080, height: 500, minTapTarget: 60, touchOnly: true }),
-      estimateMeasurer,
+  it("sheds branding while price and CTA survive once the kiosk is small enough", () => {
+    const shedding = [960, 820, 700, 580, 460, 380, 300].find(
+      (h) => resolveLayout(demoAd, kioskPortrait(h), estimateMeasurer).elements.find((e) => e.id === "logo")!.status === "dropped",
     );
-    const at300 = resolveLayout(
-      demoAd,
-      defineSurface({ id: "k300", label: "K300", width: 1080, height: 300, minTapTarget: 60, touchOnly: true }),
-      estimateMeasurer,
-    );
+    expect(shedding, "branding never dropped at any tested height").toBeDefined();
 
-    // branding (priority 3) is always the first thing to go
-    expect(at500.elements.find((e) => e.id === "logo")!.status).toBe("dropped");
-    // price (priority 2) survives longer than branding
-    expect(at500.elements.find((e) => e.id === "price")!.status).not.toBe("dropped");
-    void at300;
-    void kiosk;
+    const layout = resolveLayout(demoAd, kioskPortrait(shedding!), estimateMeasurer);
+    expect(layout.elements.find((e) => e.id === "logo")!.status).toBe("dropped");
+    expect(layout.elements.find((e) => e.id === "price")!.status).not.toBe("dropped");
+    expect(layout.elements.find((e) => e.id === "cta")!.status).not.toBe("dropped");
   });
 
   it("never drops the CTA at any kiosk height", () => {
-    for (const h of [1080, 800, 500, 400, 300, 250, 200]) {
-      const s = defineSurface({ id: `k${h}`, label: `K${h}`, width: 1080, height: h, minTapTarget: 60, touchOnly: true });
-      const layout = resolveLayout(demoAd, s, estimateMeasurer);
-      const cta = layout.elements.find((e) => e.id === "cta")!;
-      expect(cta.status, `CTA dropped at height ${h}`).not.toBe("dropped");
+    for (const h of [960, 800, 580, 460, 380, 300, 260]) {
+      const layout = resolveLayout(demoAd, kioskPortrait(h), estimateMeasurer);
+      expect(layout.elements.find((e) => e.id === "cta")!.status, `CTA dropped at height ${h}`).not.toBe("dropped");
     }
   });
 
-  it("reports dropped elements in diagnostics", () => {
-    const s = defineSurface({ id: "k420", label: "K420", width: 1080, height: 420, minTapTarget: 60, touchOnly: true });
-    const layout = resolveLayout(demoAd, s, estimateMeasurer);
+  it("reports drop diagnostics and still passes hard constraints", () => {
+    const layout = resolveLayout(demoAd, kioskPortrait(460), estimateMeasurer);
     expect(Array.isArray(layout.diagnostics.dropped)).toBe(true);
     expect(layout.diagnostics.passes).toBe(true);
   });
 
-  it("degrades monotonically: layout at lower height is a subset of taller layout", () => {
-    const t1 = resolveLayout(demoAd, kiosk, estimateMeasurer).elements.filter((e) => e.status !== "dropped").map((e) => e.id);
-    const s500 = defineSurface({ id: "k500", label: "K500", width: 1080, height: 500, minTapTarget: 60, touchOnly: true });
-    const t2 = resolveLayout(demoAd, s500, estimateMeasurer).elements.filter((e) => e.status !== "dropped").map((e) => e.id);
-    for (const id of t2) expect(t1, `${id} placed when taller but missing when shorter`).toContain(id);
+  it("degrades monotonically: a shorter kiosk never places what a taller one dropped", () => {
+    let previous = placedIds(960);
+    for (const h of [820, 700, 580, 460, 380, 300]) {
+      const current = placedIds(h);
+      for (const id of current) {
+        expect(previous, `${id} placed at height ${h} but missing at a taller height`).toContain(id);
+      }
+      previous = current;
+    }
   });
 });

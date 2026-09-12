@@ -9,7 +9,7 @@ const DISPLAY_SCALE: Record<SurfaceKey, number> = {
   mobileLandscape: 1,
   broadcastLowerThird: 0.55,
   retailKiosk: 0.42,
-  kioskCompact: 0.42,
+  kioskCompact: 0.45,
 };
 
 export default function App() {
@@ -22,24 +22,20 @@ export default function App() {
 
   const { surface, layout } = useLiveLayout(surfaceKey, heightOverride);
   const scale = DISPLAY_SCALE[surfaceKey];
+  const baseHeight = surfaceProfiles[surfaceKey].height;
 
   useEffect(() => {
     if (backend === "canvas") {
-      if (canvasRef.current) {
-        renderToCanvas(adSpec, layout, surface, canvasRef.current, { debug });
-      }
-      if (hostRef.current) hostRef.current.innerHTML = "";
+      if (canvasRef.current) renderToCanvas(adSpec, layout, surface, canvasRef.current, { debug });
+      if (hostRef.current) hostRef.current.replaceChildren();
       return;
     }
     if (hostRef.current) {
-      const measuredSurface = { ...surface, width: surface.width * scale, height: surface.height * scale };
-      hostRef.current.style.width = `${measuredSurface.width}px`;
-      hostRef.current.style.height = `${measuredSurface.height}px`;
-      renderToDom(adSpec, layout, { ...surface, width: surface.width, height: surface.height }, hostRef.current, { debug, displayScale: scale });
+      renderToDom(adSpec, layout, surface, hostRef.current, { debug, displayScale: scale });
     }
   }, [layout, surface, debug, scale, backend]);
 
-  const degrading = surfaceKey === "kioskCompact" || heightOverride !== null;
+  const cta = layout.elements.find((e) => e.id === "cta");
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", padding: 16, maxWidth: 1100, margin: "0 auto" }}>
@@ -98,14 +94,7 @@ export default function App() {
               style={{ width: surface.width * scale, height: surface.height * scale, border: "1px solid #bbb" }}
             />
           ) : (
-            <div
-              ref={hostRef}
-              style={{
-                border: "1px solid #bbb",
-                background: "linear-gradient(160deg,#fdfdfd,#f3f4f6)",
-                position: "relative",
-              }}
-            />
+            <div ref={hostRef} style={{ border: "1px solid #bbb", position: "relative" }} />
           )}
           <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
             surface: {surface.width}×{surface.height}px
@@ -113,36 +102,39 @@ export default function App() {
           </div>
         </section>
 
-        <section style={{ flex: "1 1 260px", minWidth: 240 }}>
+        <section style={{ flex: "1 1 280px", minWidth: 260 }}>
           <h2 style={{ fontSize: 14, margin: "0 0 6px" }}>Resolution diagnostics</h2>
           <ul style={{ fontSize: 13, paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
+            <li>
+              CTA (priority 2):{" "}
+              <strong style={{ color: cta?.status === "dropped" ? "#e03131" : "#2f9e44" }}>{cta?.status ?? "missing"}</strong>
+            </li>
             <li>dropped: {layout.diagnostics.dropped.length ? layout.diagnostics.dropped.join(", ") : "none"}</li>
             <li>scaled: {layout.diagnostics.scaled.length ? layout.diagnostics.scaled.join(", ") : "none"}</li>
             <li>truncated: {layout.diagnostics.truncated.length ? layout.diagnostics.truncated.join(", ") : "none"}</li>
             <li>hard constraints: {layout.diagnostics.passes ? "satisfied ✓" : "unresolved ✗"}</li>
           </ul>
 
-          {degrading && (
-            <div style={{ marginTop: 12 }}>
-              <label style={{ fontSize: 13 }}>
-                Surface height: {surface.height}px
-                <input
-                  type="range"
-                  min={180}
-                  max={1080}
-                  value={heightOverride ?? surfaceProfiles[surfaceKey].height}
-                  onChange={(e) => setHeightOverride(Number(e.target.value))}
-                  style={{ display: "block", width: "100%" }}
-                />
-              </label>
-              <button onClick={() => setHeightOverride(null)} style={{ fontSize: 12, padding: "4px 8px", cursor: "pointer" }}>
-                reset height
-              </button>
-              <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
-                Drag to shrink — branding degrades through scale → truncate → drop, cleanly, never overlapping.
-              </p>
-            </div>
-          )}
+          <div style={{ marginTop: 12 }}>
+            <label style={{ fontSize: 13 }}>
+              Surface height: {surface.height}px
+              <input
+                type="range"
+                min={Math.min(240, baseHeight)}
+                max={baseHeight}
+                value={heightOverride ?? baseHeight}
+                onChange={(e) => setHeightOverride(Number(e.target.value))}
+                style={{ display: "block", width: "100%" }}
+              />
+            </label>
+            <button onClick={() => setHeightOverride(null)} style={{ fontSize: 12, padding: "4px 8px", cursor: "pointer" }}>
+              reset height
+            </button>
+            <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
+              Drag to shrink — the lowest-priority element (branding, then promo) degrades through scale → truncate → drop,
+              while the CTA stays intact. Never overlaps.
+            </p>
+          </div>
 
           <label style={{ display: "block", marginTop: 12, fontSize: 13 }}>
             <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} /> show debug markers
@@ -151,7 +143,8 @@ export default function App() {
       </main>
 
       <footer style={{ marginTop: 24, fontSize: 12, color: "#888" }}>
-        Same ad spec resolved live: {layout.elements.filter((e) => e.status !== "dropped").length}/{layout.elements.length} elements placed · measured with real canvas text metrics
+        Same ad spec resolved live: {layout.elements.filter((e) => e.status !== "dropped").length}/{layout.elements.length} elements
+        placed · real canvas text metrics
       </footer>
     </div>
   );

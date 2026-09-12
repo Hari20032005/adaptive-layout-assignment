@@ -34,6 +34,51 @@ function preferredCross(entry: BandEntry, axis: BandAxis): number {
 }
 
 const MIN_MAIN_FACTOR = 0.35;
+/**
+ * Elements may be scaled down to this fraction of their preferred size before
+ * the resolver starts dropping low-priority elements. Keeps degradation
+ * legible (branding drops) instead of squeezing everything to its hard floor.
+ */
+const COMFORT_SCALE_FLOOR = 0.5;
+
+/**
+ * Priority-aware scene reservation. Before banding, every element's preferred
+ * main-axis size is scaled down (never below its hard minimum) so that the sum
+ * of all main-axis demands plus the worst-case inter-element gaps fits the
+ * budget. This is the "scale" rung of the degradation ladder: high-priority
+ * elements are preserved by shrinking everyone proportionally, instead of a
+ * greedy pass spending the whole budget on early elements and starving (then
+ * dropping) later high-value ones such as the CTA.
+ *
+ * Idempotent: always recomputes from `basePreferredSize`, so repeated calls
+ * across degradation iterations do not compound.
+ */
+export function reserveMain(ordered: ElementConstraints[], axis: BandAxis, area: Rect): void {
+  if (ordered.length === 0) return;
+  const budget = axis === "row" ? area.height : area.width;
+  const reservedGaps = GAP * (ordered.length - 1);
+  const available = Math.max(0, budget - reservedGaps);
+
+  const totalPreferred = ordered.reduce(
+    (sum, e) => sum + (axis === "row" ? e.basePreferredSize.height : e.basePreferredSize.width),
+    0,
+  );
+  const rawFactor = totalPreferred > available ? available / totalPreferred : 1;
+  // never squeeze below the comfort floor: past it, low-priority elements drop
+  const factor = Math.max(rawFactor, COMFORT_SCALE_FLOOR);
+
+  for (const e of ordered) {
+    if (axis === "row") {
+      const base = e.basePreferredSize.height;
+      const min = Math.min(e.requiredMin.height, budget);
+      e.preferredSize = { ...e.basePreferredSize, height: Math.max(min, base * factor) };
+    } else {
+      const base = e.basePreferredSize.width;
+      const min = Math.min(e.requiredMin.width, budget);
+      e.preferredSize = { ...e.basePreferredSize, width: Math.max(min, base * factor) };
+    }
+  }
+}
 
 export function compressFactor(bands: Band[], axis: BandAxis, area: Rect): number | null {
   const budget = axis === "row" ? area.height : area.width;

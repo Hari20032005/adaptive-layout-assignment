@@ -1,5 +1,5 @@
 import { formBands, selectAxis } from "./band";
-import { applyCompress, compressFactor, layoutBands, type Placement } from "./place";
+import { applyCompress, compressFactor, layoutBands, reserveMain, type Placement } from "./place";
 import { checkInvariants } from "./degrade";
 import { deriveConstraints, type ElementConstraints } from "./constraints";
 import type {
@@ -13,7 +13,6 @@ import type { TextMeasurer, TextMeasurement } from "./measure";
 import { estimateMeasurer } from "./measure";
 
 export const LINE_HEIGHT = 1.3;
-export const CHAR_WIDTH = 0.55;
 
 /**
  * Entry point of the engine.
@@ -38,6 +37,7 @@ export function resolveLayout(
   const maxIterations = spec.elements.length + 1;
 
   for (let i = 0; i <= maxIterations; i++) {
+    reserveMain(derived.elements, axis, area);
     const { bands, dropCandidates } = formBands(derived.elements, axis, area);
     const factor = compressFactor(bands, axis, area);
     if (factor !== null) applyCompress(bands, axis, factor);
@@ -59,11 +59,11 @@ export function resolveLayout(
       break;
     }
 
-    // Degradation: blame (elements that could not get a valid rect) is the
-    // strongest signal; drop the lowest-priority offender. Only when nothing
-    // is blamed do we shed unbanded drop candidates.
-    const pool = blame.length > 0 ? blame.filter((e) => derived.elements.includes(e)) : dropCandidates;
-    const victim = lowestPriority(pool.length > 0 ? pool : derived.elements);
+    // Degradation drop: sacrifice the lowest-priority element overall. The
+    // reservation pass deliberately over-subscribes below the comfort floor,
+    // so the correct response is priority order — not whichever element the
+    // greedy pass happened to blame.
+    const victim = lowestPriority(derived.elements);
     if (!victim) break;
     dropped.push(victim);
     derived = { workingArea: area, elements: derived.elements.filter((e) => e !== victim) };
@@ -105,20 +105,18 @@ function emitElements(
       const minFont = p.constraints.effectiveMinTextSize;
       const fontSize = Math.round(Math.max(minFont, p.constraints.preferredFont ?? minFont));
       const lineHeight = fontSize * LINE_HEIGHT;
-      const lines = Math.max(1, Math.floor(p.rect.height / lineHeight));
-      const requested = Math.min(el.content.maxLines ?? lines, lines);
-      const perLine = Math.max(1, Math.floor(p.rect.width / (fontSize * CHAR_WIDTH)));
+      const linesThatFit = Math.max(1, Math.floor(p.rect.height / lineHeight));
+      const requested = Math.max(1, Math.min(el.content.maxLines ?? linesThatFit, linesThatFit));
       const measurement: TextMeasurement = measurer.measure(el.content.text, fontSize, p.rect.width, requested);
       const original = el.content.text;
-      const fitsAll = measurement.width >= perLine * requested || original.length <= perLine * requested;
+      const overflowed = measurement.overflowed === true || measurement.height > p.rect.height + 0.5;
+
       resolved.fontSize = fontSize;
-      resolved.lines = requested;
-      if (!fitsAll && original.length > perLine * requested) {
-        resolved.text = original.slice(0, Math.max(0, perLine * requested - 1)) + "…";
+      resolved.lines = measurement.lines;
+      resolved.text = original;
+      if (overflowed) {
         resolved.status = "truncated";
         diagnostics.truncated.push(el.id);
-      } else {
-        resolved.text = original;
       }
     }
 

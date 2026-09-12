@@ -47,7 +47,17 @@ This is why a 1920×250 broadcast bar and a 320×480 interstitial produce *struc
 
 ## 3. Band formation (greedy, priority-ordered)
 
-Each element, in priority order, is allocated along the main axis:
+Before banding, a **priority-aware reservation pass** (`reserveMain`) sizes the
+main axis for the whole scene: it scales every element's preferred main size by
+`budget / totalPreferred` (never below the element's hard minimum, and never
+below a **comfort floor of 50%** of preferred). This is the first rung of the
+degradation ladder and it is why a greedy pass can no longer spend the whole
+budget on early elements and starve the CTA: if the scene cannot fit even at
+the comfort floor, the overflow is resolved by **dropping the lowest-priority
+element**, not by squeezing everything to its hard floor. The pass recomputes
+from `basePreferredSize` every iteration, so it is idempotent.
+
+Each element, in priority order, is then allocated along the main axis:
 
 1. **Fresh band** (preferred): if the remaining budget (`budget − usedTotal − gap`) fits at least the element's hard minimum, the element opens its own band sized `min(preferred, room)`, floored at its minimum. Its `scale = allocated/preferred` records compression.
 2. **Co-occupy**: when no fresh band fits, the element may join the current band *if it fits inside the band's current length without growing it* (`mainSize ≤ bandLen`, capped per axis: 3 for rows, 2 for columns).
@@ -70,16 +80,28 @@ Blame contract: an element that cannot get a valid rect within its band *without
 
 ## 5. Degradation cascade
 
-The resolver loop (priority order, lowest-first):
+The resolver loop runs the ladder lowest-priority-first:
 
-1. **compress** — uniform scene compression (step 3's pass)
-2. **scale** — per-element `scale < 1` recorded as status `"scaled"`
-3. **truncate** — text only: if allocated height/width cannot hold the requested text at font ≥ `effectiveMinTextSize`, the text is cut with an ellipsis (status `"truncated"`, resolved `text`/`lines`/`fontSize` emitted); type never shrinks below `minTextSize` on far surfaces
-4. **drop** — lowest-priority offender removed from the set entirely; re-run
+1. **compress / scale** — `reserveMain` scales the whole scene down to the
+   comfort floor (50% of preferred), never below any element's hard minimum;
+   per-element `scale < 1` is reported as status `"scaled"`
+2. **truncate** — text only: if the text needs more lines than the box can
+   hold at font ≥ `effectiveMinTextSize`, the element is marked `"truncated"`
+   and rendered with a line clamp; type never shrinks below `minTextSize` on
+   far surfaces
+3. **drop** — if the scene still cannot satisfy all hard constraints at the
+   comfort floor, the globally **lowest-priority element** is removed (break
+   ties by role weight: branding 1 < secondary 2 < primary/action 4 < hero 5)
+   and the whole scene is re-resolved
 
-The loop terminates when all hard constraints hold among placed elements (`diagnostics.passes = true`) or no elements remain. Unbanded drop candidates are reported in `diagnostics.dropped` even when they were never placed.
+The loop terminates when all hard constraints hold among placed elements
+(`diagnostics.passes = true`) or no elements remain. Unbanded drop candidates
+are reported in `diagnostics.dropped` even when they were never placed.
 
-Worked example — Kiosk Compact (1080×430): headline+hero+CTA+price fit as bands; promo and logo cannot satisfy their minimums and drop cleanly. Shrinking height via the slider drops `logo` before `promo` before `price`; the CTA (priority 2) survives even at 180px. This exact trace is asserted in `tests/degradation.spec.ts`.
+Worked example — portrait kiosk (480 wide) as height shrinks: at 960–460px all
+six elements fit (scaled); at ~300px the branding logo (priority 3, weight 1)
+drops first, then the promo line; the price and the CTA remain throughout.
+This cascade is asserted in `tests/degradation.spec.ts`.
 
 ## 6. Resolved layout contract
 

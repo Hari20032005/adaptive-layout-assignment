@@ -1,14 +1,15 @@
 import { defineAd } from "../engine/spec";
 import { defineSurface } from "../engine/surfaces";
+import { BRAND_LOGO, PRODUCT_IMAGE } from "./placeholders";
 
 export const adSpec = defineAd({
   elements: [
     { id: "headline", type: "text", role: "primary", priority: 1, content: { text: "Summer Sale — 40% Off Everything", maxLines: 2 } },
-    { id: "hero", type: "image", role: "hero", priority: 1, content: { src: "product.png", alt: "Product photo", aspectRatio: 1.5 } },
+    { id: "hero", type: "image", role: "hero", priority: 1, content: { src: PRODUCT_IMAGE, alt: "Product photo", aspectRatio: 1.5 } },
     { id: "price", type: "text", role: "secondary", priority: 2, content: { text: "$29.99", maxLines: 1 } },
     { id: "cta", type: "button", role: "action", priority: 2, interactive: true, content: { label: "Shop Now" } },
     { id: "promo", type: "text", role: "secondary", priority: 3, content: { text: "Free shipping on orders over $50. Limited time offer while supplies last.", maxLines: 3 } },
-    { id: "logo", type: "logo", role: "branding", priority: 3, content: { src: "brand.png", alt: "Brand logo" } },
+    { id: "logo", type: "logo", role: "branding", priority: 3, content: { src: BRAND_LOGO, alt: "Brand logo" } },
   ],
 });
 
@@ -47,9 +48,9 @@ export const surfaceProfiles = {
   }),
   kioskCompact: defineSurface({
     id: "kioskCompact",
-    label: "Kiosk Compact (degradation demo)",
-    width: 1080,
-    height: 430,
+    label: "Kiosk Portrait (degradation demo)",
+    width: 480,
+    height: 960,
     minTapTarget: 60,
     touchOnly: true,
   }),

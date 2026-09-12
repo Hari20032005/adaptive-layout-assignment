@@ -18,6 +18,8 @@ export interface ElementConstraints {
   element: AdElementSpec;
   requiredMin: Size;
   preferredSize: Size;
+  /** the content-derived preferred size before any scene compression */
+  basePreferredSize: Size;
   priority: Priority;
   roleWeight: number;
   needsTapTarget: boolean;
@@ -104,6 +106,7 @@ export function deriveConstraints(
         element,
         requiredMin,
         preferredSize,
+        basePreferredSize: { ...preferredSize },
         priority: element.priority,
         roleWeight: ROLE_WEIGHTS[element.role] ?? 0,
         needsTapTarget,

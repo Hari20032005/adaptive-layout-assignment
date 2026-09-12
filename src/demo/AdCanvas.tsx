@@ -1,38 +1,19 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo } from "react";
 import { resolveLayout } from "../engine/resolver";
-import { renderToDom, type RenderDomOptions } from "../render/render-dom";
 import { canvasMeasurer } from "../render/text-metrics";
 import { adSpec, surfaceProfiles, type SurfaceKey } from "./sample-ad";
 import type { ResolvedLayout, SurfaceProfile } from "../engine/types";
 
-export interface AdCanvasProps extends RenderDomOptions {
-  surface: SurfaceProfile;
-}
-
-export function AdCanvas({ surface, debug }: AdCanvasProps) {
-  const hostRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!hostRef.current) return;
-    const layout = resolveLayout(adSpec, surface, canvasMeasurer);
-    renderToDom(adSpec, layout, surface, hostRef.current, { debug });
-  }, [surface, debug]);
-
-  return <div ref={hostRef} className="ad-host" style={{ position: "relative" }} />;
-}
-
-export interface DemoState {
-  surfaceKey: SurfaceKey;
-  heightOverride: number | null;
-}
-
+/**
+ * Live re-resolution hook: returns the surface (possibly height-overridden)
+ * and the freshly resolved layout for it. Single source of truth for the
+ * demo pages.
+ */
 export function useLiveLayout(surfaceKey: SurfaceKey, heightOverride: number | null) {
   return useMemo(() => {
     const base = surfaceProfiles[surfaceKey];
     const surface: SurfaceProfile =
-      heightOverride !== null && heightOverride !== base.height
-        ? { ...base, height: heightOverride }
-        : base;
+      heightOverride !== null && heightOverride !== base.height ? { ...base, height: heightOverride } : base;
     return {
       surface,
       layout: resolveLayout(adSpec, surface, canvasMeasurer) as ResolvedLayout,

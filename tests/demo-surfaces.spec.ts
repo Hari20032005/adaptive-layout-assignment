@@ -1,0 +1,92 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { resolveLayout } from "../src/engine/resolver";
+import { canvasMeasurer } from "../src/render/text-metrics";
+import { adSpec, surfaceProfiles } from "../src/demo/sample-ad";
+
+/**
+ * End-to-end regression tests using the REAL demo spec and the browser text
+ * measurer. These guard the bug where canvasMeasurer returned `maxWidth` as
+ * the text width, which inflated the CTA's required size and caused the
+ * resolver to drop the CTA on every surface.
+ */
+
+function mockBrowserMetrics(charWidthFactor = 0.6) {
+  const original = document.createElement.bind(document);
+  vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+    if (tagName !== "canvas") return original(tagName);
+    const ctx = {
+      font: "16px system-ui",
+      measureText(text: string) {
+        const size = Number.parseInt(ctx.font, 10) || 16;
+        return { width: text.length * size * charWidthFactor };
+      },
+    };
+    return { getContext: () => ctx } as unknown as HTMLElement;
+  });
+}
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("demo spec + real browser measurer", () => {
+  it("never drops the CTA on any demo surface", () => {
+    mockBrowserMetrics();
+    for (const [key, surface] of Object.entries(surfaceProfiles)) {
+      const layout = resolveLayout(adSpec, surface, canvasMeasurer);
+      const cta = layout.elements.find((e) => e.id === "cta");
+      expect(cta, `CTA missing on ${key}`).toBeDefined();
+      expect(cta!.status, `CTA dropped on ${key}`).not.toBe("dropped");
+    }
+  });
+
+  it("satisfies all hard constraints on every demo surface", () => {
+    mockBrowserMetrics();
+    for (const [key, surface] of Object.entries(surfaceProfiles)) {
+      const layout = resolveLayout(adSpec, surface, canvasMeasurer);
+      expect(layout.diagnostics.passes, `constraints unresolved on ${key}`).toBe(true);
+    }
+  });
+
+  it("stays valid across many measurement biases (0.4x–0.75x char width)", () => {
+    for (const factor of [0.4, 0.5, 0.6, 0.75]) {
+      vi.restoreAllMocks();
+      mockBrowserMetrics(factor);
+      for (const [key, surface] of Object.entries(surfaceProfiles)) {
+        const layout = resolveLayout(adSpec, surface, canvasMeasurer);
+        const cta = layout.elements.find((e) => e.id === "cta")!;
+        expect(cta.status, `CTA dropped on ${key} at factor ${factor}`).not.toBe("dropped");
+      }
+    }
+  });
+});
+
+describe("progressive degradation on the portrait kiosk", () => {
+  it("sheds elements progressively as height shrinks, always keeping the CTA", () => {
+    mockBrowserMetrics();
+    const base = surfaceProfiles.kioskCompact;
+    const dropSets = new Set<string>();
+
+    for (const height of [960, 860, 760, 660, 560, 460, 360, 260]) {
+      const surface = { ...base, height };
+      const layout = resolveLayout(adSpec, surface, canvasMeasurer);
+      const dropped = [...layout.diagnostics.dropped].sort().join(",");
+      dropSets.add(dropped);
+
+      const cta = layout.elements.find((e) => e.id === "cta")!;
+      expect(cta.status, `CTA dropped at height ${height}`).not.toBe("dropped");
+    }
+
+    // more than one distinct drop set over the slider range = visible cascade
+    expect(dropSets.size).toBeGreaterThan(1);
+  });
+
+  it("drops branding before the CTA at any height", () => {
+    mockBrowserMetrics();
+    const base = surfaceProfiles.kioskCompact;
+    for (const height of [960, 700, 500, 300]) {
+      const layout = resolveLayout(adSpec, { ...base, height }, canvasMeasurer);
+      const logo = layout.elements.find((e) => e.id === "logo")!;
+      const cta = layout.elements.find((e) => e.id === "cta")!;
+      if (logo.status === "dropped") expect(cta.status).not.toBe("dropped");
+    }
+  });
+});

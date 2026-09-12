@@ -4,13 +4,20 @@
  */
 import { estimateMeasurer, type TextMeasurement, type TextMeasurer } from "../engine/measure";
 
+const LINE_HEIGHT_FACTOR = 1.3;
+
+interface MockableContext {
+  font: string;
+  measureText(text: string): { width: number };
+}
+
 export const canvasMeasurer: TextMeasurer = {
   measure(text: string, fontSize: number, maxWidth: number, maxLines?: number): TextMeasurement {
     if (typeof document === "undefined" || maxWidth <= 0) {
       return estimateMeasurer.measure(text, fontSize, maxWidth, maxLines);
     }
     const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d") as unknown as MockableContext | null;
     if (!ctx) return estimateMeasurer.measure(text, fontSize, maxWidth, maxLines);
 
     ctx.font = `${fontSize}px system-ui, sans-serif`;
@@ -28,16 +35,21 @@ export const canvasMeasurer: TextMeasurer = {
     }
     if (current) lines.push(current);
 
-    let out = lines;
-    if (maxLines !== undefined && lines.length > maxLines) {
-      out = lines.slice(0, maxLines);
-      out[maxLines - 1] = `${out[maxLines - 1]}…`;
+    const naturalLines = lines.length;
+    const overflowed = maxLines !== undefined && naturalLines > maxLines;
+    const shown = overflowed ? lines.slice(0, maxLines) : lines;
+    if (overflowed && shown.length > 0) {
+      shown[shown.length - 1] = `${shown[shown.length - 1]}…`;
     }
 
+    // real width of the widest rendered line — NOT the available maxWidth
+    const width = shown.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
+
     return {
-      width: maxWidth,
-      height: out.length * fontSize * 1.3,
-      lines: out.length,
+      width: Math.min(width, maxWidth),
+      height: shown.length * fontSize * LINE_HEIGHT_FACTOR,
+      lines: shown.length,
+      overflowed,
     };
   },
 };

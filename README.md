@@ -9,7 +9,7 @@ One declarative ad spec + one surface profile → a fully typed resolved layout,
 ```bash
 npm install
 npm run dev      # starts the demo (default http://localhost:5173)
-npm test         # 77 tests: invariants, degradation, validation, renderer
+npm test         # 57 tests: invariants, degradation, validation, renderer
 npm run build    # production build
 ```
 
@@ -63,7 +63,7 @@ Module mapping to the assignment's list: `spec.ts` ↔ `src/engine/spec.ts`, `su
 - Fixed element-type set (`text`, `image`, `button`, `logo`) — adding a type requires one new branch in `constraints.ts` (measurement) and renderer.
 - Band-based composition: elements never break across bands; very dense specs degrade by dropping rather than complex reflow.
 - Image placeholders: the engine positions images, but the demo renders them as labeled placeholders (no asset loading).
-- No animation between surfaces (single-surface re-resolution is instant).
+- Smooth CSS transitions animate box position/size between surfaces in the DOM backend; the Canvas backend redraws instantly.
 - `minTapTarget` applies to interactive elements and `touchOnly` surfaces only; no contrast-aware branding placement yet.
 
 ## Time spent

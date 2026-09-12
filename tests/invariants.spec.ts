@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { demoAd, mobilePortrait, broadcast, kiosk } from "./resolver.spec";
+import { demoAd, mobilePortrait, broadcast, kiosk } from "./fixtures";
 import { resolveLayout } from "../src/engine/resolver";
 import { estimateMeasurer } from "../src/engine/measure";
 import { defineSurface } from "../src/engine/surfaces";

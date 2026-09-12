@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { demoAd, mobilePortrait, kiosk, broadcast } from "./resolver.spec";
+import { demoAd, mobilePortrait, kiosk, broadcast } from "./fixtures";
 import { resolveLayout } from "../src/engine/resolver";
 import { estimateMeasurer } from "../src/engine/measure";
 import { renderToDom } from "../src/render/render-dom";
