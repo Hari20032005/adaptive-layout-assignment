@@ -22,7 +22,7 @@ Requires Node.js 20+.
 3. The same ad spec re-resolves live. The right panel shows resolution diagnostics: which elements were scaled, truncated, or dropped, and whether all hard constraints hold.
 4. On the kiosk surfaces, drag the **height slider** to shrink the surface and watch degradation happen live: the logo (`branding`, priority 3) drops cleanly first; promo text truncates/scales; price and CTA stay intact.
 
-The ad used everywhere (5 elements of 4 types: headline, hero image, price, CTA button, promo text, brand logo) is defined exactly once in [`src/demo/sample-ad.ts`](src/demo/sample-ad.ts).
+The ad used everywhere (8 elements of 4 types: headline, hero image, price, CTA button, promo text, brand logo, review rating, terms line) is defined exactly once in [`src/demo/sample-ad.ts`](src/demo/sample-ad.ts).
 
 ## Layout algorithm (summary — full detail in ARCHITECTURE.md)
 

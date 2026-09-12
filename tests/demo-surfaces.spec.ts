@@ -60,29 +60,26 @@ describe("demo spec + real browser measurer", () => {
 });
 
 describe("progressive degradation on the portrait kiosk", () => {
-  it("sheds elements progressively as height shrinks, always keeping the CTA", () => {
+  it("sheds elements in at least four distinct steps as height shrinks, always keeping the CTA", () => {
     mockBrowserMetrics();
     const base = surfaceProfiles.kioskCompact;
     const dropSets = new Set<string>();
 
-    for (const height of [960, 860, 760, 660, 560, 460, 360, 260]) {
-      const surface = { ...base, height };
-      const layout = resolveLayout(adSpec, surface, canvasMeasurer);
-      const dropped = [...layout.diagnostics.dropped].sort().join(",");
-      dropSets.add(dropped);
-
+    for (let height = base.height; height >= 240; height -= 40) {
+      const layout = resolveLayout(adSpec, { ...base, height }, canvasMeasurer);
+      dropSets.add([...layout.diagnostics.dropped].sort().join(","));
       const cta = layout.elements.find((e) => e.id === "cta")!;
       expect(cta.status, `CTA dropped at height ${height}`).not.toBe("dropped");
     }
 
-    // more than one distinct drop set over the slider range = visible cascade
-    expect(dropSets.size).toBeGreaterThan(1);
+    // a genuinely stepped cascade, not all-or-nothing
+    expect(dropSets.size).toBeGreaterThanOrEqual(4);
   });
 
   it("drops branding before the CTA at any height", () => {
     mockBrowserMetrics();
     const base = surfaceProfiles.kioskCompact;
-    for (const height of [960, 700, 500, 300]) {
+    for (const height of [base.height, 800, 600, 400, 260]) {
       const layout = resolveLayout(adSpec, { ...base, height }, canvasMeasurer);
       const logo = layout.elements.find((e) => e.id === "logo")!;
       const cta = layout.elements.find((e) => e.id === "cta")!;

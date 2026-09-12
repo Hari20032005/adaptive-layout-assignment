@@ -5,11 +5,13 @@ import { BRAND_LOGO, PRODUCT_IMAGE } from "./placeholders";
 export const adSpec = defineAd({
   elements: [
     { id: "headline", type: "text", role: "primary", priority: 1, content: { text: "Summer Sale — 40% Off Everything", maxLines: 2 } },
-    { id: "hero", type: "image", role: "hero", priority: 1, content: { src: PRODUCT_IMAGE, alt: "Product photo", aspectRatio: 1.5 } },
+    { id: "hero", type: "image", role: "hero", priority: 1, preferredSize: { width: 360, height: 300 }, content: { src: PRODUCT_IMAGE, alt: "Product photo", aspectRatio: 1.5 } },
     { id: "price", type: "text", role: "secondary", priority: 2, content: { text: "$29.99", maxLines: 1 } },
     { id: "cta", type: "button", role: "action", priority: 2, interactive: true, content: { label: "Shop Now" } },
     { id: "promo", type: "text", role: "secondary", priority: 3, content: { text: "Free shipping on orders over $50. Limited time offer while supplies last.", maxLines: 3 } },
     { id: "logo", type: "logo", role: "branding", priority: 3, content: { src: BRAND_LOGO, alt: "Brand logo" } },
+    { id: "rating", type: "text", role: "secondary", priority: 4, content: { text: "★★★★★ 2,340 verified reviews", maxLines: 1 } },
+    { id: "terms", type: "text", role: "secondary", priority: 5, content: { text: "Terms apply. Offer ends Sunday.", maxLines: 1 } },
   ],
 });
 
@@ -50,7 +52,7 @@ export const surfaceProfiles = {
     id: "kioskCompact",
     label: "Kiosk Portrait (degradation demo)",
     width: 480,
-    height: 960,
+    height: 1280,
     minTapTarget: 60,
     touchOnly: true,
   }),
