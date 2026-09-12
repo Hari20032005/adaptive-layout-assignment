@@ -63,7 +63,11 @@ export function reserveMain(ordered: ElementConstraints[], axis: BandAxis, area:
     (sum, e) => sum + (axis === "row" ? e.basePreferredSize.height : e.basePreferredSize.width),
     0,
   );
-  const rawFactor = totalPreferred > available ? available / totalPreferred : 1;
+  // leave ~10% headroom: if the scaled demand filled the budget exactly, a
+  // one-pixel rounding difference could flip fit/drop as the surface shrinks,
+  // making degradation non-monotonic (an element reappearing at a smaller size)
+  const usable = available * 0.9;
+  const rawFactor = totalPreferred > usable ? usable / totalPreferred : 1;
   // never squeeze below the comfort floor: past it, low-priority elements drop
   const factor = Math.max(rawFactor, COMFORT_SCALE_FLOOR);
 

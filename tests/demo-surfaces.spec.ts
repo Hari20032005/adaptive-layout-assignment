@@ -90,4 +90,20 @@ describe("progressive degradation on the portrait kiosk", () => {
       if (logo.status === "dropped") expect(cta.status).not.toBe("dropped");
     }
   });
+
+  it("degrades monotonically across the slider — no element reappears when shrinking", () => {
+    mockBrowserMetrics();
+    const base = surfaceProfiles.kioskCompact;
+    let previous: Set<string> | null = null;
+    for (let height = base.height; height >= 240; height -= 20) {
+      const layout = resolveLayout(adSpec, { ...base, height }, canvasMeasurer);
+      const placedIds = new Set(layout.elements.filter((e) => e.status !== "dropped").map((e) => e.id));
+      if (previous) {
+        for (const id of placedIds) {
+          expect(previous.has(id), `${id} reappears at height ${height}`).toBe(true);
+        }
+      }
+      previous = placedIds;
+    }
+  });
 });
