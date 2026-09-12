@@ -66,7 +66,7 @@ Module mapping to the assignment's list: `spec.ts` ↔ `src/engine/spec.ts`, `su
 
 ## Time spent
 
-(Not yet finalized — measured honestly at submission. Current build took the working equivalents of about 1 working session so far.)
+Approximately **8 hours** across one focused session: algorithm design and iteration, engine implementation, test suite, and documentation.
 
 ## AI tools disclosure
 
