@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveLayout } from "../src/engine/resolver";
 import { canvasMeasurer, resetTextMetricsCache } from "../src/render/text-metrics";
+import { defineSurface } from "../src/engine/surfaces";
 import { adSpec, surfaceProfiles } from "../src/demo/sample-ad";
 
 /**
@@ -105,5 +106,28 @@ describe("progressive degradation on the portrait kiosk", () => {
       }
       previous = placedIds;
     }
+  });
+
+  it("resolves a brand-new 'unknown at design time' surface with no engine changes", () => {
+    mockBrowserMetrics();
+    // a print-to-digital QR landing panel, never seen by the engine before
+    const qrLanding = defineSurface({
+      id: "qrLandingPanel",
+      label: "QR Landing Panel",
+      width: 400,
+      height: 620,
+      safeArea: { top: 16, right: 16, bottom: 16, left: 16 },
+      minTapTarget: 48,
+    });
+    const layout = resolveLayout(adSpec, qrLanding, canvasMeasurer);
+    for (const el of layout.elements) {
+      expect(el.x).toBeGreaterThanOrEqual(0);
+      expect(el.y).toBeGreaterThanOrEqual(0);
+      expect(el.x + el.width).toBeLessThanOrEqual(qrLanding.width + 0.001);
+      expect(el.y + el.height).toBeLessThanOrEqual(qrLanding.height + 0.001);
+    }
+    const cta = layout.elements.find((e) => e.id === "cta")!;
+    expect(cta.status).not.toBe("dropped");
+    expect(layout.diagnostics.passes).toBe(true);
   });
 });
