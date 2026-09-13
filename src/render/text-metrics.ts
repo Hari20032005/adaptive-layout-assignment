@@ -84,3 +84,25 @@ export const canvasMeasurer: TextMeasurer = {
     };
   },
 };
+
+/**
+ * Memoizing wrapper: the resolver measures the same text at the same font
+ * size/width/weight many times per resolution (auto-fit scans) and again on
+ * every slider step. Caching turns that into a map lookup.
+ */
+export function createMemoizedMeasurer(base: TextMeasurer): TextMeasurer {
+  const cache = new Map<string, TextMeasurement>();
+  return {
+    measure(text: string, fontSize: number, maxWidth: number, maxLines?: number, weight = "400"): TextMeasurement {
+      const key = `${weight}|${fontSize}|${Math.round(maxWidth)}|${maxLines ?? ""}|${text}`;
+      const hit = cache.get(key);
+      if (hit) return hit;
+      const result = base.measure(text, fontSize, maxWidth, maxLines, weight);
+      if (cache.size > 4000) cache.clear();
+      cache.set(key, result);
+      return result;
+    },
+  };
+}
+
+export const memoCanvasMeasurer: TextMeasurer = createMemoizedMeasurer(canvasMeasurer);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { adSpec, surfaceProfiles, type SurfaceKey } from "./sample-ad";
 import { useLiveLayout } from "./AdCanvas";
 import { renderToDom } from "../render/render-dom";
@@ -34,6 +34,22 @@ export default function App() {
   const [debug, setDebug] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingHeight = useRef<number | null>(null);
+
+  // coalesce rapid slider input to at most one re-resolution per frame, using
+  // the latest value (not the first) so the drag ends where the user left it
+  const setHeightThrottled = useCallback((value: number) => {
+    pendingHeight.current = value;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      if (pendingHeight.current !== null) {
+        setHeightOverride(pendingHeight.current);
+        pendingHeight.current = null;
+      }
+    });
+  }, []);
 
   const { surface, layout } = useLiveLayout(surfaceKey, heightOverride);
   const scale = DISPLAY_SCALE[surfaceKey];
@@ -206,7 +222,7 @@ export default function App() {
               max={baseHeight}
               value={height}
               style={{ ["--fill" as string]: sliderFill }}
-              onChange={(e) => setHeightOverride(Number(e.target.value))}
+              onChange={(e) => setHeightThrottled(Number(e.target.value))}
             />
             <div className="btn-row">
               <button className="btn" onClick={() => setHeightOverride(null)}>

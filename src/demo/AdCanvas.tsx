@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { resolveLayout } from "../engine/resolver";
-import { canvasMeasurer } from "../render/text-metrics";
+import { memoCanvasMeasurer } from "../render/text-metrics";
 import { adSpec, surfaceProfiles, type SurfaceKey } from "./sample-ad";
 import type { ResolvedLayout, SurfaceProfile } from "../engine/types";
 
@@ -16,7 +16,7 @@ export function useLiveLayout(surfaceKey: SurfaceKey, heightOverride: number | n
       heightOverride !== null && heightOverride !== base.height ? { ...base, height: heightOverride } : base;
     return {
       surface,
-      layout: resolveLayout(adSpec, surface, canvasMeasurer) as ResolvedLayout,
+      layout: resolveLayout(adSpec, surface, memoCanvasMeasurer) as ResolvedLayout,
     };
   }, [surfaceKey, heightOverride]);
 }
