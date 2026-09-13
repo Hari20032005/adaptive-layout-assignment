@@ -17,7 +17,7 @@ function mockBrowserMetrics(charWidthFactor = 0.6) {
     const ctx = {
       font: "16px system-ui",
       measureText(text: string) {
-        const size = Number.parseInt(ctx.font, 10) || 16;
+        const size = Number.parseInt(ctx.font.match(/(\d+)px/)?.[1] ?? "16", 10) || 16;
         return { width: text.length * size * charWidthFactor };
       },
     };

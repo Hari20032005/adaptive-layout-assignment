@@ -25,14 +25,14 @@ export function resetTextMetricsCache(): void {
 }
 
 export const canvasMeasurer: TextMeasurer = {
-  measure(text: string, fontSize: number, maxWidth: number, maxLines?: number): TextMeasurement {
+  measure(text: string, fontSize: number, maxWidth: number, maxLines?: number, weight = "400"): TextMeasurement {
     if (typeof document === "undefined" || maxWidth <= 0) {
       return estimateMeasurer.measure(text, fontSize, maxWidth, maxLines);
     }
     const ctx = getContext();
     if (!ctx) return estimateMeasurer.measure(text, fontSize, maxWidth, maxLines);
 
-    ctx.font = `${fontSize}px system-ui, sans-serif`;
+    ctx.font = `${weight} ${fontSize}px system-ui, sans-serif`;
     const words = text.split(/\s+/);
     const lines: string[] = [];
     let current = "";

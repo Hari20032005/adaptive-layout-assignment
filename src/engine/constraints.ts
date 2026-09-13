@@ -1,7 +1,7 @@
 import type { Rect, SurfaceProfile, AdElementSpec, AdSpec, Priority, Size } from "./types";
 import { workingArea } from "./geometry";
 import type { TextMeasurer } from "./measure";
-import { estimateMeasurer } from "./measure";
+import { estimateMeasurer, LINE_HEIGHT_FACTOR } from "./measure";
 
 const ROLE_WEIGHTS: Record<string, number> = {
   hero: 5,
@@ -35,6 +35,8 @@ export interface ElementConstraints {
   effectiveMinTextSize: number;
   /** the font size the spec intends to render this element at */
   preferredFont?: number;
+  /** the font weight the renderer will paint with (must match measurement) */
+  preferredFontWeight?: string;
 }
 
 export interface DerivedConstraints {
@@ -54,6 +56,15 @@ function preferredFontSize(element: AdElementSpec, minFont: number): number {
   const base = ROLE_FONT_SIZE[element.role] ?? DEFAULT_FONT_SIZE;
   return Math.max(minFont, base);
 }
+
+/** keep measurement and rendering in lockstep: they must use the same weight */
+const ROLE_FONT_WEIGHT: Record<string, string> = {
+  primary: "700",
+  action: "600",
+  secondary: "500",
+  hero: "400",
+  branding: "700",
+};
 
 export function deriveConstraints(
   spec: AdSpec,
@@ -79,13 +90,22 @@ export function deriveConstraints(
       let preferredSize: Size;
 
       if (element.type === "text") {
+        const weight = ROLE_FONT_WEIGHT[element.role] ?? "400";
         const m = measurer.measure(
           element.content.text,
           font,
           element.preferredSize?.width ?? area.width,
           element.content.maxLines,
+          weight,
         );
-        requiredMin = { width: minFont * 2, height: minFont };
+        // never allow the box to be narrower than the longest word, or a
+        // single token (e.g. "$29.99") would break across lines
+        const longestWord = element.content.text.split(/\s+/).reduce((a, b) => (a.length >= b.length ? a : b), "");
+        const longestWordWidth = measurer.measure(longestWord, minFont, area.width, 1, weight).width;
+        requiredMin = {
+          width: Math.max(minFont * 2, Math.ceil(longestWordWidth) + 4),
+          height: Math.ceil(minFont * LINE_HEIGHT_FACTOR),
+        };
         // leave a safety margin: canvas measureText and the browser's final
         // layout differ slightly (font weight, kerning), so the box must be
         // a little wider than the raw measurement
@@ -97,7 +117,7 @@ export function deriveConstraints(
         requiredMin = { width: 24, height: 24 };
         preferredSize = { width: prefW, height: prefH };
       } else if (element.type === "button") {
-        const m = measurer.measure(element.content.label, font, area.width, 1);
+        const m = measurer.measure(element.content.label, font, area.width, 1, ROLE_FONT_WEIGHT[element.role] ?? "400");
         requiredMin = { width: m.width + 16, height: m.height + 12 };
         preferredSize = { width: m.width + 32, height: m.height + 16 };
       } else {
@@ -121,6 +141,7 @@ export function deriveConstraints(
         needsTapTarget,
         effectiveMinTextSize: minFont,
         preferredFont: minFont > 0 ? font : undefined,
+        preferredFontWeight: ROLE_FONT_WEIGHT[element.role] ?? "400",
       };
     });
 

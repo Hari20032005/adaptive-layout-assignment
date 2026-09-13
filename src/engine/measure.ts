@@ -8,11 +8,11 @@ export interface TextMeasurement {
 }
 
 export interface TextMeasurer {
-  measure(text: string, fontSize: number, maxWidth: number, maxLines?: number): TextMeasurement;
+  measure(text: string, fontSize: number, maxWidth: number, maxLines?: number, weight?: string): TextMeasurement;
 }
 
 const CHAR_WIDTH_FACTOR = 0.55;
-const LINE_HEIGHT_FACTOR = 1.3;
+export const LINE_HEIGHT_FACTOR = 1.3;
 
 export const estimateMeasurer: TextMeasurer = {
   measure(text: string, fontSize: number, maxWidth: number, maxLines?: number): TextMeasurement {

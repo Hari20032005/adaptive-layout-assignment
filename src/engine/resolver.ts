@@ -37,6 +37,7 @@ export function resolveLayout(
 
   for (let i = 0; i <= maxIterations; i++) {
     reserveMain(derived.elements, axis, area);
+    if (axis === "column") refitTextHeights(derived.elements, measurer);
     const { bands, dropCandidates } = formBands(derived.elements, axis, area);
     const factor = compressFactor(bands, axis, area);
     if (factor !== null) applyCompress(bands, axis, factor);
@@ -79,6 +80,25 @@ export function resolveLayout(
   return { surfaceId: surface.id, elements, diagnostics };
 }
 
+/**
+ * Scaling a text element's width changes how many lines it wraps to, which
+ * changes how tall it must be. Re-measure each text element's height at its
+ * (possibly scaled) width so boxes are tall enough for the wrapped content.
+ */
+function refitTextHeights(elements: ElementConstraints[], measurer: TextMeasurer): void {
+  for (const e of elements) {
+    if (e.element.type !== "text") continue;
+    const width = Math.max(1, e.preferredSize.width);
+    const weight = e.preferredFontWeight ?? "400";
+    const font = e.preferredFont ?? e.effectiveMinTextSize;
+    const m = measurer.measure(e.element.content.text, font, width, e.element.content.maxLines, weight);
+    e.preferredSize = {
+      ...e.preferredSize,
+      height: Math.max(e.requiredMin.height, Math.ceil(m.height * 1.08)),
+    };
+  }
+}
+
 function emitElements(
   placements: Placement[],
   dropped: ElementConstraints[],
@@ -105,15 +125,18 @@ function emitElements(
       const maxFont = Math.round(Math.max(minFont, p.constraints.preferredFont ?? minFont));
       const capLines = el.content.maxLines;
       const original = el.content.text;
-      const lineFactor = 1.25;
+      const lineFactor = 1.3;
       // the browser wraps a little wider than canvas measureText (weight,
       // kerning), so fit against a slightly reduced width
-      const fitWidth = Math.max(1, p.rect.width * 0.9);
+      // multi-word text gets a wrap-safety margin; a single token cannot wrap
+      // awkwardly, and the longest-word minimum already guarantees its width
+      const fitWidth = Math.max(1, p.rect.width * (/\s/.test(original) ? 0.9 : 1));
 
       let fontSize = minFont;
-      let measurement: TextMeasurement = measurer.measure(original, fontSize, fitWidth, capLines);
+      const weight = p.constraints.preferredFontWeight ?? "400";
+      let measurement: TextMeasurement = measurer.measure(original, fontSize, fitWidth, capLines, weight);
       for (let f = maxFont; f >= minFont; f--) {
-        const m = measurer.measure(original, f, fitWidth, capLines);
+        const m = measurer.measure(original, f, fitWidth, capLines, weight);
         fontSize = f;
         measurement = m;
         if (m.height <= p.rect.height + 0.5 && m.overflowed !== true) break;

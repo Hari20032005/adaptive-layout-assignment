@@ -14,7 +14,7 @@ import type { Rect } from "./types";
 
 export const COLUMN_AXIS_THRESHOLD = 2.0;
 export const GAP = 16;
-const ROW_MAX_ENTRIES = 3;
+const ROW_MAX_ENTRIES = 1;
 const COLUMN_MAX_ENTRIES = 2;
 
 export type BandAxis = "row" | "column";

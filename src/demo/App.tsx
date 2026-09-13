@@ -10,7 +10,7 @@ import "./demo.css";
 const DISPLAY_SCALE: Record<SurfaceKey, number> = {
   mobilePortrait: 1,
   mobileLandscape: 1,
-  broadcastLowerThird: 0.55,
+  broadcastLowerThird: 0.4,
   retailKiosk: 0.42,
   kioskCompact: 0.45,
 };

@@ -119,22 +119,18 @@ export function renderToDom(
     if (specEl.type === "text") {
       box.style.textAlign = "left";
       box.style.padding = "0";
-      box.style.lineHeight = "1.25";
+      box.style.lineHeight = "1.3";
       box.textContent = resolved.text ?? "";
       box.style.whiteSpace = "normal";
       box.style.wordBreak = "break-word";
       box.dataset.status = resolved.status;
-      if (resolved.status === "truncated") {
-        // genuinely too long for the box: clamp and show an ellipsis
-        box.style.display = "-webkit-box";
-        box.style.webkitBoxOrient = "vertical";
-        box.style.webkitLineClamp = String(resolved.lines ?? 1);
-        box.style.overflow = "hidden";
-      } else {
-        // fits: render the full text with no clamp and no clipping
-        box.style.display = "block";
-        box.style.overflow = "visible";
-      }
+      // always clamp: text must never overflow its resolved box and collide
+      // with a neighbour. Ellipsis appears only when the text truly needs
+      // more lines than the box can hold.
+      box.style.display = "-webkit-box";
+      box.style.webkitBoxOrient = "vertical";
+      box.style.webkitLineClamp = String(resolved.lines ?? 1);
+      box.style.overflow = "hidden";
     } else if (specEl.type === "button") {
       box.style.justifyContent = "center";
       box.style.whiteSpace = "nowrap";
