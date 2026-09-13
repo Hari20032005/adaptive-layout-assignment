@@ -11,8 +11,8 @@ const DISPLAY_SCALE: Record<SurfaceKey, number> = {
   mobilePortrait: 1,
   mobileLandscape: 1,
   broadcastLowerThird: 0.4,
-  retailKiosk: 0.42,
-  kioskCompact: 0.45,
+  retailKiosk: 0.46,
+  kioskCompact: 0.5,
 };
 
 const REPO_URL = "https://github.com/Hari20032005/adaptive-layout-assignment";
