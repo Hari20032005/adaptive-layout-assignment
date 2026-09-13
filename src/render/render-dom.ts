@@ -117,7 +117,7 @@ export function renderToDom(
     }
 
     if (specEl.type === "text") {
-      box.style.textAlign = "left";
+      box.style.textAlign = "center";
       box.style.padding = "0";
       box.style.lineHeight = "1.3";
       box.textContent = resolved.text ?? "";
